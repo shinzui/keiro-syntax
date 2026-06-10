@@ -53,14 +53,14 @@ Use a checklist to summarize granular steps. Every stopping point must be docume
 even if it requires splitting a partially completed task into two ("done" vs. "remaining").
 This section must always reflect the actual current state of the work.
 
-- [ ] Scaffold `packages/shiki-keiro/` (`package.json`, `tsconfig.json`, directory layout).
-- [ ] Write `syntaxes/keiro.tmLanguage.json` implementing the full taxonomy.
-- [ ] Write `src/index.ts` exporting the Shiki `LanguageRegistration`.
-- [ ] Install deps and build (`bun install`, `bun run build`).
-- [ ] Write and pass the tokenization tests (`test/scopes.test.ts`).
-- [ ] Write the demo script (`examples/demo.ts`) that emits colored HTML.
-- [ ] Write `packages/shiki-keiro/README.md`.
-- [ ] Commit with the required git trailers.
+- [x] Scaffold `packages/shiki-keiro/` (`package.json`, `tsconfig.json`, directory layout).
+- [x] Write `syntaxes/keiro.tmLanguage.json` implementing the full taxonomy.
+- [x] Write `src/index.ts` exporting the Shiki `LanguageRegistration`.
+- [x] Install deps and build (`bun install`, `bun run build`).
+- [x] Write and pass the tokenization tests (`test/scopes.test.ts`) — 10 pass, 0 fail.
+- [x] Write the demo script (`examples/demo.ts`) that emits colored HTML.
+- [x] Write `packages/shiki-keiro/README.md`.
+- [x] Commit with the required git trailers.
 
 
 ## Surprises & Discoveries
@@ -68,7 +68,26 @@ This section must always reflect the actual current state of the work.
 Document unexpected behaviors, bugs, optimizations, or insights discovered during
 implementation. Provide concise evidence.
 
-(None yet.)
+- `bun install` resolved `shiki@4.2.0` (the `^4.0.0` peer/dev range; the spec's reference
+  machine was 4.0.2). The Shiki 4.x API used — `LanguageRegistration`, `createHighlighter({
+  langs: [keiro] })`, and `codeToTokensBase(..., { includeExplanation: true })` — works as the
+  plan documented.
+- **Token-boundary discovery (the plan's Step 2a note in action):** `codeToTokensBase` merges
+  adjacent tokens that resolve to the same theme color into a single display token (e.g.
+  `prefix=` becomes one token, and a whole `"demo.events"` string is one token), while
+  preserving per-grammar-match boundaries in `token.explanation[]`. Matching on
+  `token.content` therefore failed for `prefix` and the bare `"`; the fix was to match at the
+  `explanation[].content` level, which is the granularity at which the grammar assigns scopes.
+  After this change all 10 tests pass. The grammar scopes themselves were correct from the
+  start — only the test's token-lookup granularity needed adjusting.
+- The modifier assertion uses `prefix` (present in `reservation.keiro` as `prefix=rsv`); the
+  plan's draft asserted `from`, which does not appear in that corpus file. Recorded as a
+  benign token-choice adjustment, per the plan's instruction to assert tokens that exist.
+- TypeScript reports `lang: 'keiro'` as not assignable to the built-in language union and the
+  test file's `bun:test`/`node:*` imports as unresolved. These are editor/language-server
+  diagnostics only: the test file is outside the build's `include: ["src"]`, bun supplies its
+  own types at runtime, and `'keiro'` is a valid runtime lang once registered. `bun run build`
+  and `bun test` both succeed.
 
 
 ## Decision Log
@@ -97,7 +116,25 @@ Record every decision made while working on the plan.
 Summarize outcomes, gaps, and lessons learned at major milestones or at completion.
 Compare the result against the original purpose.
 
-(To be filled during and after implementation.)
+**Outcome (2026-06-10): complete and meeting the original purpose.** A `keiro` code block
+rendered through Shiki now produces fully colored HTML. The npm package
+`packages/shiki-keiro/` ships `syntaxes/keiro.tmLanguage.json` (scope `source.keiro`,
+implementing the full taxonomy with the exact canonical scope names from
+`spec/keiro-dsl-language-model.md` Section 6) and a typed `LanguageRegistration` exported from
+`src/index.ts` (also re-exported as the `./grammar` path for VS Code / non-Shiki consumers).
+`bun run build` produces `dist/index.js` + `dist/index.d.ts`.
+
+**Verification.** `bun test` exits 0 with 10/10 cases passing — one assertion per mandatory
+token class (comment, declaration introducer, declaration-site type name, control keyword,
+modifier, boolean, primitive type, string, number, operator). `bun run demo` writes
+`examples/keiro-demo.html` (145 colored spans; `context`/`id` keyword-red `#D73A49`,
+`TransferReservationId` type-purple `#6F42C1`), confirming end-to-end rendering through the
+real `createHighlighter` → `codeToHtml` path.
+
+**Against scope.** The grammar includes the optional `entity.name.type.keiro`
+declaration-site type-name refinement and omits the optional derivation-function scope — both
+within spec. `emit` is consistently `keyword.declaration.keiro` (a deliberate lexical, not
+parse-aware, simplification, as the plan noted).
 
 
 ## Context and Orientation

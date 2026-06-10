@@ -100,7 +100,7 @@ and the shared corpus plus matching test expectations keep them honest.
 |---|-------|------|-----------|-----------|--------|
 | 1 | Shared keiro-dsl Language Model and Test Corpus | docs/plans/1-shared-keiro-dsl-language-model-and-test-corpus.md | None | None | Complete |
 | 2 | Vim and Neovim Syntax Highlighting Package for keiro-dsl | docs/plans/2-vim-and-neovim-syntax-highlighting-package-for-keiro-dsl.md | EP-1 | None | Complete |
-| 3 | Shiki Syntax Highlighting Package for keiro-dsl | docs/plans/3-shiki-syntax-highlighting-package-for-keiro-dsl.md | EP-1 | None | Not Started |
+| 3 | Shiki Syntax Highlighting Package for keiro-dsl | docs/plans/3-shiki-syntax-highlighting-package-for-keiro-dsl.md | EP-1 | None | Complete |
 
 Status values: Not Started, In Progress, Complete, Cancelled.
 Hard Deps and Soft Deps reference other rows by their # prefix (e.g., EP-1, EP-3).
@@ -166,9 +166,9 @@ and the milestone. This section provides an at-a-glance view of the entire initi
 - [x] EP-2: `packages/keiro-vim/` plugin skeleton with `ftdetect`, `ftplugin`, `syntax` files.
 - [x] EP-2: `syntax/keiro.vim` implements the full taxonomy; opening a corpus file in Neovim shows correct colors.
 - [x] EP-2: Headless Neovim test asserts token classifications on the corpus; README written.
-- [ ] EP-3: `packages/shiki-keiro/` npm package skeleton (package.json, tsconfig, build).
-- [ ] EP-3: `syntaxes/keiro.tmLanguage.json` TextMate grammar implements the full taxonomy.
-- [ ] EP-3: `src/index.ts` exports the Shiki `LanguageRegistration`; vitest tokenization tests pass on the corpus; README written.
+- [x] EP-3: `packages/shiki-keiro/` npm package skeleton (package.json, tsconfig, build).
+- [x] EP-3: `syntaxes/keiro.tmLanguage.json` TextMate grammar implements the full taxonomy.
+- [x] EP-3: `src/index.ts` exports the Shiki `LanguageRegistration`; bun tokenization tests pass on the corpus (10/10); README written.
 
 
 ## Surprises & Discoveries
@@ -186,6 +186,19 @@ interactions between child plans. Provide concise evidence.
   comments — EP-2/EP-3 comment assertions should target it.
 - EP-2 and EP-3 are now both unblocked and have no dependency on each other; they may proceed
   in parallel.
+- EP-2 complete (2026-06-10): headless-Neovim test passes 10/10 against the corpus. The
+  optional `keiroTypeName` declaration-site refinement was implemented.
+- EP-3 complete (2026-06-10): `bun test` passes 10/10 and the HTML demo renders. **Cross-plan
+  insight worth noting for any future package:** Shiki's `codeToTokensBase` *merges adjacent
+  same-color tokens* but preserves per-match boundaries in `token.explanation[]`; assert
+  scopes at the `explanation[].content` level, not `token.content`. The Vim package (EP-2) has
+  no analogous merge — `synID` samples per character — so the two packages' tests differ in
+  mechanism even though they assert the same classification.
+- **The integration point held.** Both packages classify the identical literal word sets into
+  corresponding buckets (introducer / control / modifier / constant / primitive type) sourced
+  from `spec/keiro-dsl-language-model.md` Section 6; no drift occurred. The one corpus-driven
+  test adjustment (EP-3 asserting the modifier `prefix` instead of `from`, which is absent from
+  `reservation.keiro`) did not touch the shared taxonomy.
 
 
 ## Decision Log
@@ -232,4 +245,38 @@ plan.
 Summarize outcomes, gaps, and lessons learned at major milestones or at completion.
 Compare the result against the original vision.
 
-(To be filled during and after implementation.)
+**Initiative complete (2026-06-10). All three child plans are Complete and the original
+vision is fully met.**
+
+What now exists in this repository, matching the Vision & Scope:
+
+- **Shared foundation (EP-1):** `spec/keiro-dsl-language-model.md` — the authoritative lexical
+  model and token-class taxonomy (canonical TextMate scope + Vim group per class), with its
+  50-word reserved-keyword list verified byte-exact against the keiro parser's `reservedWords`.
+  `corpus/` holds five verbatim upstream fixtures plus a hand-written comment/literal sampler,
+  documented in `corpus/README.md` as read-only inputs.
+- **Vim/Neovim package (EP-2):** `packages/keiro-vim/` — `ftdetect` + `ftplugin` + `syntax`
+  files giving automatic, config-free highlighting of `.keiro` files in both Vim and Neovim,
+  with a headless-Neovim test (10/10) and a README. Verified by `bash
+  packages/keiro-vim/test/run.sh` (exit 0).
+- **Shiki package (EP-3):** `packages/shiki-keiro/` — a TextMate grammar (`source.keiro`) and a
+  typed Shiki `LanguageRegistration`, buildable to `dist/`, with bun tokenization tests (10/10)
+  and a rendering demo. Verified by `bun test` (exit 0) and `bun run demo`.
+
+**Did the decomposition pay off?** Yes. Extracting the language model once (EP-1) meant EP-2
+and EP-3 each *translated* a fixed taxonomy rather than re-deriving it from the parser, and the
+shared corpus gave both packages a common ground truth to assert against. No classification
+drift between the two packages occurred. EP-2 and EP-3 shared no source and could have run
+fully in parallel; here they were done in sequence but independently.
+
+**Gaps / out-of-scope (unchanged from the original scope):** no Tree-sitter grammar, no
+language server / semantic analysis, no auto-indentation beyond `commentstring`, and the keiro
+project itself was only read, never modified. The optional `entity.name.type.keiro` /
+declaration-site type-name refinement was implemented in both packages; the optional
+derivation-function scope was not (within spec).
+
+**Lessons:** (1) The single most valuable coordination artifact was Section 6's three-column
+mapping table — it made "the same classification, two output formats" mechanical. (2) Test
+harnesses must adapt to each highlighter's token granularity (Vim per-character `synID` vs.
+Shiki's color-merged tokens with `explanation[]` sub-scopes); the *grammars* were correct, the
+*assertions* needed format-specific care.

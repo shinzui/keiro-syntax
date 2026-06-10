@@ -8,3 +8,6 @@ node_modules/
 dist/
 *.tsbuildinfo
 .DS_Store
+
+# Generated demo output
+packages/shiki-keiro/examples/keiro-demo.html

@@ -1,0 +1,30 @@
+{
+  "name": "shiki-keiro",
+  "version": "0.1.0",
+  "description": "Shiki TextMate grammar and language registration for keiro-dsl (.keiro)",
+  "type": "module",
+  "files": ["dist", "syntaxes"],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./grammar": "./syntaxes/keiro.tmLanguage.json"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "test": "bun test",
+    "demo": "bun run examples/demo.ts"
+  },
+  "peerDependencies": {
+    "shiki": "^4.0.0"
+  },
+  "devDependencies": {
+    "shiki": "^4.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.5.0"
+  }
+}
