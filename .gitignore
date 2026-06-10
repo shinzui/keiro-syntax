@@ -2,3 +2,9 @@
 .agents/
 .seihou/manifest.json.tmp
 CLAUDE.local.md
+
+# Node / build output for packages/shiki-keiro and tooling
+node_modules/
+dist/
+*.tsbuildinfo
+.DS_Store

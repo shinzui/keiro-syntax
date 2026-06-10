@@ -1,0 +1,27 @@
+# keiro-dsl lexical sampler — comments, strings, numbers, durations, versions
+context demo-context                 # line comment after code
+
+id  OrderId  prefix=ord              # wire-word prefix
+
+enum Color { Red=red Green=green Blue=blue }
+
+aggregate Sample
+  regs
+    count   Int    = 0
+    label   Text   = placeholder
+  states Draft Open! Closed!
+
+  command Touch { count label }
+  event   Touched v2 { count label }
+
+  wire kind=ctorName fields=camelCase schemaVersion=1
+
+contract demo {
+  schemaVersion 1
+  discriminator messageType
+  topic ev "demo.events"
+  event Pinged on ev {
+    at: text
+    n: int
+  }
+}
