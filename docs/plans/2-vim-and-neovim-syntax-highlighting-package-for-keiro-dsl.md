@@ -46,13 +46,15 @@ Use a checklist to summarize granular steps. Every stopping point must be docume
 even if it requires splitting a partially completed task into two ("done" vs. "remaining").
 This section must always reflect the actual current state of the work.
 
-- [ ] Create `packages/keiro-vim/` with `ftdetect/keiro.vim` and `ftplugin/keiro.vim`.
-- [ ] Write `syntax/keiro.vim` implementing comments, strings, numbers, keyword groups,
-      types, operators, and the `highlight default link` mappings.
-- [ ] Manually confirm a corpus file shows colors in Neovim.
-- [ ] Write the headless-Neovim test (`test/highlight_spec.lua` + `test/run.sh`) and make it pass.
-- [ ] Write `packages/keiro-vim/README.md` with installation instructions for common plugin managers.
-- [ ] Commit with the required git trailers.
+- [x] Create `packages/keiro-vim/` with `ftdetect/keiro.vim` and `ftplugin/keiro.vim`.
+- [x] Write `syntax/keiro.vim` implementing comments, strings, numbers, keyword groups,
+      types, operators, and the `highlight default link` mappings (incl. the optional
+      `keiroTypeName` declaration-site refinement).
+- [x] Manually confirm a corpus file shows colors in Neovim (verified via the headless test,
+      which asserts concrete syntax groups independent of color scheme).
+- [x] Write the headless-Neovim test (`test/highlight_spec.lua` + `test/run.sh`) and make it pass.
+- [x] Write `packages/keiro-vim/README.md` with installation instructions for common plugin managers.
+- [x] Commit with the required git trailers.
 
 
 ## Surprises & Discoveries
@@ -60,7 +62,16 @@ This section must always reflect the actual current state of the work.
 Document unexpected behaviors, bugs, optimizations, or insights discovered during
 implementation. Provide concise evidence.
 
-(None yet.)
+- The headless test passes 10/10 with exit 0 on `nvim` v0.12.2. Sample output:
+  `ok "# keiro-dsl" -> keiroComment`, `ok "guard" -> keiroStatement`,
+  `ok "-->" -> keiroOperator`, `ok "true" -> keiroBoolean`. The `-l script.lua args` runner
+  form works as documented and passes the plugin dir as `arg[1]`.
+- The optional `keiroTypeName` declaration-site refinement (Step C) was implemented — it
+  colors the CamelCase name after a declaration introducer as `Type`. Because `keiroKeyword`
+  is a `keyword`-form item it keeps its own color and `\zs` makes the match begin after the
+  keyword, so the two do not conflict.
+- No keyword/operator discrepancies vs. `spec/keiro-dsl-language-model.md` were found; the
+  keyword sets were transcribed directly from the spec's Section 6 buckets.
 
 
 ## Decision Log
@@ -79,7 +90,22 @@ Record every decision made while working on the plan.
 Summarize outcomes, gaps, and lessons learned at major milestones or at completion.
 Compare the result against the original purpose.
 
-(To be filled during and after implementation.)
+**Outcome (2026-06-10): complete and meeting the original purpose.** Opening any `.keiro`
+file in Vim or Neovim now highlights keywords, type names, strings, numbers, comments, and
+operators with zero per-project configuration. The package `packages/keiro-vim/` ships the
+standard layout — `ftdetect/keiro.vim` (maps `*.keiro` → filetype `keiro`),
+`ftplugin/keiro.vim` (`commentstring`/`comments` for `#`), and `syntax/keiro.vim` (the
+`keiro*` syntax groups linked to standard highlight groups per the shared taxonomy).
+
+**Verification.** `bash packages/keiro-vim/test/run.sh` exits 0 with 10/10 token checks
+passing against the shared corpus — at least one assertion per mandatory class (comment,
+string, number, boolean, type, declaration-introducer keyword, control keyword, operator).
+The test asserts concrete `keiro*` syntax-group names via `synID`, so it is independent of
+any color scheme.
+
+**Against scope.** Tree-sitter remains out of scope (documented as a future
+`packages/keiro-treesitter/`). This regex syntax file delivers the full user-visible win and
+is the only highlighting option for classic Vim.
 
 
 ## Context and Orientation

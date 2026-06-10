@@ -99,7 +99,7 @@ and the shared corpus plus matching test expectations keep them honest.
 | # | Title | Path | Hard Deps | Soft Deps | Status |
 |---|-------|------|-----------|-----------|--------|
 | 1 | Shared keiro-dsl Language Model and Test Corpus | docs/plans/1-shared-keiro-dsl-language-model-and-test-corpus.md | None | None | Complete |
-| 2 | Vim and Neovim Syntax Highlighting Package for keiro-dsl | docs/plans/2-vim-and-neovim-syntax-highlighting-package-for-keiro-dsl.md | EP-1 | None | Not Started |
+| 2 | Vim and Neovim Syntax Highlighting Package for keiro-dsl | docs/plans/2-vim-and-neovim-syntax-highlighting-package-for-keiro-dsl.md | EP-1 | None | Complete |
 | 3 | Shiki Syntax Highlighting Package for keiro-dsl | docs/plans/3-shiki-syntax-highlighting-package-for-keiro-dsl.md | EP-1 | None | Not Started |
 
 Status values: Not Started, In Progress, Complete, Cancelled.
@@ -163,9 +163,9 @@ and the milestone. This section provides an at-a-glance view of the entire initi
 - [x] EP-1: Repository scaffolding in place (root README, .gitignore, `spec/`, `corpus/`, `packages/`).
 - [x] EP-1: `spec/keiro-dsl-language-model.md` written — full keyword groups, taxonomy, and scope/highlight-group mapping table.
 - [x] EP-1: Shared `.keiro` corpus assembled under `corpus/` with provenance README.
-- [ ] EP-2: `packages/keiro-vim/` plugin skeleton with `ftdetect`, `ftplugin`, `syntax` files.
-- [ ] EP-2: `syntax/keiro.vim` implements the full taxonomy; opening a corpus file in Neovim shows correct colors.
-- [ ] EP-2: Headless Neovim test asserts token classifications on the corpus; README written.
+- [x] EP-2: `packages/keiro-vim/` plugin skeleton with `ftdetect`, `ftplugin`, `syntax` files.
+- [x] EP-2: `syntax/keiro.vim` implements the full taxonomy; opening a corpus file in Neovim shows correct colors.
+- [x] EP-2: Headless Neovim test asserts token classifications on the corpus; README written.
 - [ ] EP-3: `packages/shiki-keiro/` npm package skeleton (package.json, tsconfig, build).
 - [ ] EP-3: `syntaxes/keiro.tmLanguage.json` TextMate grammar implements the full taxonomy.
 - [ ] EP-3: `src/index.ts` exports the Shiki `LanguageRegistration`; vitest tokenization tests pass on the corpus; README written.
