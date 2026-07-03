@@ -12,7 +12,8 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./grammar": "./syntaxes/keiro.tmLanguage.json"
+    "./grammar": "./syntaxes/keiro.tmLanguage.json",
+    "./syntaxes/keiro.tmLanguage.json": "./syntaxes/keiro.tmLanguage.json"
   },
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean",
