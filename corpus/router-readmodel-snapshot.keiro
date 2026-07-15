@@ -1,0 +1,94 @@
+# keiro-dsl surface sampler — module/layout header, aggregate snapshot, readmodel,
+# router (resolve via read-model, dispatch-each), workflow patch/continueAsNew,
+# string escapes, and signed/fractional numbers. Exercises the reserved and
+# contextual words added in the current parser surface.
+context hospital-capacity
+module Acme.Services
+layout prefixed
+
+id  HospitalId  prefix=hosp
+
+aggregate Ledger
+  regs
+    balance Int = -1
+  states Open Closed!
+
+  command Post  { amount }
+  event   Posted { amount }
+
+  # aggregate snapshot policy (state-codec / shape-hash)
+  snapshot every 100 state-codec version = 2 shape-hash = "sha256:openledger"
+
+  wire kind=ctorName fields=camelCase schemaVersion=1
+
+readmodel hospitalReadiness {
+  table = "hospital_readiness"
+  schema = "public"
+  columns {
+    hospital-id Id required
+    beds        Int
+  }
+  version = 3
+  shape = "sha256:readiness"
+  consistency = Strong
+  scope = entire-log
+  feed = inline
+}
+
+router incidentRouter
+  name "incident-router"
+  input IncidentInput { incidentId:Id region }
+  key input.incidentId via idText
+  resolve stable via read-model hospitalReadiness
+    row { hospitalId region }
+  target Hospital
+  projections [ hospitalReadiness ]
+  dispatch-each ActivateSurge { hospitalId }
+    on-appended AckOk ; on-duplicate AckOk ; on-failed DeadLetter "surge failed\nretry later"
+  dispatch-id strategy=uuidv5 from=(name, key, sourceEventId, targetStreamName, occurrence)
+  rejected => halt
+  poison => deadLetter
+
+workqueue surgeQueue {
+  queue logical = "surge"
+  derive physical = "surge_p"
+  dlq = "surge_dlq"
+  table = "surge_tbl"
+  ordering fifo-throughput
+  group key from hospitalId via idText
+  provision partitioned ( interval = "1 day" , retention = "30 days" )
+  payload SurgePayload {
+    amount -> "amount" Int required
+  }
+  retry maxRetries = 3 delay = 5s dlq = on
+  disposition {
+    processed -> ackOk
+    failed    -> retry 5s
+  }
+}
+
+publisher surgePublisher {
+  emit surgeResponse
+  ordering PerKeyHeadOfLine
+  maxAttempts 10
+  backoff exponential 2s max = 60s multiplier = 1.5
+  outboxId stable from messageId
+}
+
+workflow LongRunning
+  name "long-running"
+  in  WorkflowInput { id:Id }
+  out WorkflowSummary
+  id from input.id via idText
+  body
+    step begin-work -> WorkStarted
+    patch retry-window:v2 {
+      await work-confirmation -> WorkConfirmed
+    }
+    continueAsNew WorkflowInput
+
+aggregate Hospital
+  regs
+  states Operational
+
+  snapshot on-terminal state-codec version = 1 shape-hash = "sha256:hospital"

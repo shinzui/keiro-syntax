@@ -53,27 +53,39 @@ context demo-context     # a trailing comment after code
 
 ### Strings
 
-Strings are **double-quoted**: `"..."`. There are **no escape sequences** — a string is
-simply a run of any characters between two double quotes, and a backslash is an ordinary
-character with no special meaning. (Parser: `char '"' *> many (anySingleBut '"') *> char
-'"'`.) For highlighting purposes treat a string as beginning at a `"` and ending at the next
-`"` on the same line; strings are not expected to span lines in practice.
+Strings are **double-quoted**: `"..."`. A string body supports a **closed set of escape
+sequences** introduced by a backslash: `\"`, `\\`, `\n`, `\t`, `\r`. An **unescaped newline**
+inside a string is invalid, and any **other** backslash sequence (e.g. `\q`) is invalid.
+(Parser: `stringLit`'s `strChar` = `char '\\' *> escapeCode <|> … <|> anySingleBut '"'`, with
+`escapeCode` accepting exactly `" \ n t r`.) For highlighting purposes treat a string as
+beginning at a `"` and ending at the next `"` on the same line; color each `\"`/`\\`/`\n`/
+`\t`/`\r` inside the string with the **String escape** class (Section 6) so it stands out
+from the surrounding string body. Strings are not expected to span lines in practice.
 
 ### Numbers
 
 There are three numeric forms. A highlighter should treat all three as the **Number** token
 class (Section 6):
 
-- **Plain decimal integers** — `[0-9]+` (e.g. `0`, `1`, `10`, `2024`).
+- **Plain decimal integers** — `[0-9]+` (e.g. `0`, `1`, `10`, `2024`). In a register
+  initializer the integer may carry a leading `-` sign (`-?[0-9]+`, e.g. `count Int = -1`;
+  parser `signedDecimalText`). Because `-` is also the transition/arrow operator, a purely
+  lexical highlighter colors the digits as a number and the `-` as an operator — that is the
+  correct, non-over-reaching behavior.
+- **Fractional decimals** — a digit run, a `.`, and a digit run, `[0-9]+\.[0-9]+` (e.g. a
+  backoff `multiplier=1.5`; parser `decimalText`). Match this before the plain integer so
+  `1.5` is one number and not `1` `.` `5`.
 - **Version tokens** — a literal `v` immediately followed by digits, `v[0-9]+` (e.g. `v2`,
   `v3`). These appear after an event name, as in `event Touched v2`.
-- **Duration tokens** — digits immediately followed by unit letters, `[0-9]+[a-z]+` (e.g.
-  `5m`, `2s`, `30d`). These appear in timer windows like `fireAt input.observedAt + 5m` and
-  retry delays like `retry 5s`.
+- **Duration tokens** — digits immediately followed by a single unit letter `s`, `m`, or `h`,
+  i.e. `[0-9]+[smh]` (e.g. `5m`, `2s`, `3h`). These appear in timer windows like
+  `fireAt input.observedAt + 5m` and retry delays like `retry 5s`. (Parser `pWindow` accepts
+  only `s`/`m`/`h`; there is no `d` unit.)
 
-Because the version and duration forms both start with the integer pattern, a highlighter
-should match the longer forms (`v[0-9]+`, `[0-9]+[a-z]+`) before, or together with, the plain
-integer so that the trailing letters are colored as part of the number.
+Because the version, duration, and fractional forms all start with the integer pattern, a
+highlighter should match the longer forms (`v[0-9]+`, `[0-9]+[a-z]+`, `[0-9]+\.[0-9]+`)
+before, or together with, the plain integer so that the trailing letters or fractional part
+are colored as part of the number.
 
 ### Identifiers
 
@@ -86,8 +98,13 @@ There are three identifier shapes:
 - **Wire words** — used for the context name, id prefixes, enum wire spellings, and
   status-map values; these may contain dashes: `[A-Za-z0-9][A-Za-z0-9_-]*` (e.g.
   `hospital-capacity`, `partial-divert`, `rsv`).
+- **Patch ids** — a wire word that may additionally contain a colon: `[A-Za-z0-9][A-Za-z0-9_:-]*`
+  (parser `patchIdWord`, used after `patch` in a workflow body). A highlighter that colors the
+  `:` as an operator and the rest as an identifier is fine.
 - **Dotted references** — a plain identifier with one or more `.name` parts, e.g.
   `input.hospitalId` or `timer.id`.
+- **Module prefixes** — one or more PascalCase segments joined by dots, `[A-Z][A-Za-z0-9_]*`
+  (`.[A-Z]…`)\* (parser `pModulePrefix`, used after `module`, e.g. `Acme.Services`).
 
 
 ## Section 3 — Reserved keywords (authoritative)
@@ -95,21 +112,32 @@ There are three identifier shapes:
 These are the words the parser forbids as bare identifiers — the `reservedWords` list in
 `Parser.hs`. Because a plain identifier equal to one of these is always treated as the
 keyword, they are **always** highlighted as keywords, regardless of context. The list is
-copied verbatim from the parser and contains exactly **50** words:
+copied verbatim from the parser (order preserved) and contains exactly **70** words:
 
 ```text
-context   id        enum       rule       ex         aggregate  regs       states
-command   event     wire       projection guard      write      emit       goto
-fields    status-map true      false      deprecated upcast     from       HOLE
-intake    contract  topic      accept     bind       dedupe     decode     disposition
-publisher map       workqueue  queue      payload    retry      fanout     dedup
-enqueue   seenIn    workflow   operation  consistency body      step       await
-sleep     child
+context   module    layout       prefixed      collocated  id
+enum      rule      ex           aggregate     regs        states
+command   event     wire         projection    snapshot    category
+guard     write     emit         goto          fields      status-map
+true      false     deprecated   upcast        from        HOLE
+process   router    dispatch-each resolve      read-model  dispatch
+intake    contract  topic        accept        bind        dedupe
+persist   decode    disposition  publisher     map         workqueue
+queue     payload   retry        fanout        dedup       enqueue
+seenIn    workflow  operation    consistency   body        step
+await     sleep     child        patch         continueAsNew readmodel
+columns   feed      scope        shape
 ```
+
+Note that `readmodel` (no dash) and `read-model` (with a dash) are **two distinct** reserved
+words: `readmodel` introduces the read-model node, while `read-model` appears inside a
+router's `resolve stable via read-model X` clause. `dispatch-each` and `read-model` are the
+two dashed reserved words (match them before bare words — see Section 4's implementer note).
 
 If the parser's `reservedWords` ever changes, the parser's list wins: update this section to
 match and record the difference in this repository's plan
-`docs/plans/1-shared-keiro-dsl-language-model-and-test-corpus.md` (Surprises & Discoveries).
+`docs/plans/4-reconcile-highlighters-with-keiro-dsl-lexical-surface-20-new-reserved-words-string-escapes-signed-decimal-numbers.md`
+(Surprises & Discoveries).
 
 
 ## Section 4 — Curated contextual keywords
@@ -118,17 +146,22 @@ The parser also recognizes many words **in context** that are *not* in `reserved
 could legally be used as identifiers, but in practice they read as keywords and users expect
 them highlighted. The following curated set is highlighted as keywords by both packages:
 
+(`process` and `dispatch` used to be listed here; they are now **reserved** — see Section 3.)
+
 ```text
-process      name        input       output      in          out
-correlate    via         saga        stream      target      projections
-on           advance     dispatch    schedule    timer       fire
-fireAt       source      key         value       run         signal
-query        project     result      ordering    backoff     outboxId
-messageId    idempotencyKey          discriminator           schemaVersion
-derive       of          after       required    stable      strategy
-policy       prefix      kind        logical     physical    dlq
-table        maxRetries  maxAttempts delay       readModel   field
-to           envelope    cross-check
+name         input       output      in          out         correlate
+via          saga        stream      target      projections on
+advance      schedule    timer       fire        fireAt      source
+key          value       run         signal      query       project
+result       ordering    backoff     outboxId    messageId   idempotencyKey
+discriminator             schemaVersion           derive     of
+after        required    stable      strategy    policy      prefix
+kind         logical     physical    dlq         table       maxRetries
+maxAttempts  delay       readModel   field       to          envelope
+every        partial     header      schema      version     inline
+row          halt        poison      rejected    group       provision
+outcome      fixture     interval    retention   standard    unlogged
+partitioned  unordered   off         strict      lenient
 ```
 
 ### Dashed contextual keywords (match-before-bare-words)
@@ -138,9 +171,14 @@ dispositions and should also be colored as keywords:
 
 ```text
 dispatch-id    fired-event-id  on-appended   on-duplicate  on-failed
-on-ok          on-reject       on-error      not-mine      unknown-status
-max-attempts   dead-letter     kafka-key     kafka-cursor  on-blocked
+on-ok          on-reject       on-error      on-ambiguous  not-mine
+unknown-status max-attempts    dead-letter   kafka-key     kafka-cursor
+on-blocked     on-terminal     state-codec   shape-hash    full-envelope
+dedupe-only    entire-log      fifo-throughput fifo-roundrobin
 ```
+
+The two **reserved** dashed words `dispatch-each` and `read-model` (Section 3) also require
+this match-before-bare-words treatment.
 
 **Implementer note:** because these contain dashes, a highlighter **must match them before**
 matching bare keywords or identifiers. Otherwise the leading segment (`on`, `max`, `dead`,
@@ -187,14 +225,15 @@ to. Both packages must classify the identical literal words into the keyword cla
 
 | Token class | Members / pattern | TextMate scope | Vim group |
 |---|---|---|---|
-| Declaration introducer | the subset of reserved + contextual words that begin a top-level item or node: `context`, `id`, `enum`, `rule`, `aggregate`, `process`, `contract`, `intake`, `emit`, `publisher`, `workqueue`, `dispatch`, `workflow`, `operation` | `keyword.declaration.keiro` | `Keyword` |
-| Control / section keyword | all other reserved keywords (Section 3) **and** all curated contextual keywords (Section 4), e.g. `regs`, `states`, `command`, `event`, `guard`, `write`, `goto`, `on`, `advance`, `schedule`, `timer`, `bind`, `accept`, `map`, `step`, `await`, ... | `keyword.control.keiro` | `Statement` |
+| Declaration introducer | the subset of reserved + contextual words that begin a top-level item or node: `context`, `id`, `enum`, `rule`, `aggregate`, `process`, `router`, `contract`, `intake`, `emit`, `publisher`, `workqueue`, `dispatch`, `readmodel`, `workflow`, `operation` | `keyword.declaration.keiro` | `Keyword` |
+| Control / section keyword | all other reserved keywords (Section 3) **and** all curated contextual keywords (Section 4), e.g. `regs`, `states`, `command`, `event`, `guard`, `write`, `goto`, `snapshot`, `module`, `layout`, `resolve`, `dispatch-each`, `read-model`, `category`, `persist`, `patch`, `continueAsNew`, `columns`, `feed`, `scope`, `shape`, `on`, `advance`, `schedule`, `timer`, `bind`, `accept`, `map`, `step`, `await`, ... | `keyword.control.keiro` | `Statement` |
 | Modifier | `deprecated`, `upcast`, `from`, `consistency`, `required`, `stable`, `strategy`, `via`, `policy`, `prefix`, `kind` | `storage.modifier.keiro` | `StorageClass` |
 | Language constant | `true`, `false`, `HOLE`, `placeholder`, `skip`, `hole` | `constant.language.keiro` (give `true` / `false` the more specific `constant.language.boolean.keiro`) | `Boolean` for `true` / `false`, else `Constant` |
 | Primitive type | `Bool`, `Int`, `Text`, `Time`, `Id`, `Maybe`, `typeid`, `text`, `int` | `support.type.keiro` | `Type` |
 | Declaration-site type name | a CamelCase plain identifier appearing immediately after a declaration introducer that names a type (`enum X`, `aggregate X`, `contract X`, `command X`, `event X`, `id X`, `workflow X`, `operation X`, `process X`) | `entity.name.type.keiro` | `Type` |
 | String | `"..."` (Section 2) | `string.quoted.double.keiro` | `String` |
-| Number | integer, `v[0-9]+`, and `[0-9]+[a-z]+` duration (Section 2) | `constant.numeric.keiro` | `Number` |
+| String escape | one of `\"`, `\\`, `\n`, `\t`, `\r` inside a string (Section 2) | `constant.character.escape.keiro` | `SpecialChar` |
+| Number | integer, `[0-9]+\.[0-9]+` fractional, `v[0-9]+`, and `[0-9]+[smh]` duration (Section 2) | `constant.numeric.keiro` | `Number` |
 | Comment | `#` to end of line (Section 2) | `comment.line.number-sign.keiro` | `Comment` |
 | Operator | the symbols in Section 5 | `keyword.operator.keiro` | `Operator` |
 | Derivation function (optional) | a plain identifier appearing right after `via` or `derive` (e.g. `idText`, `uuidv5`, `reservationStream`) | `entity.name.function.keiro` | `Function` |

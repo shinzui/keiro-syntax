@@ -23,11 +23,19 @@ DSL test fixtures at
 Together these exercise every top-level node type and every lexical feature of keiro-dsl
 **except comments**, which the upstream fixtures omit.
 
-The remaining file is **hand-written for this repository**:
+The remaining files are **hand-written for this repository**:
 
 - `comments-and-literals.keiro` — authored here to exercise `#` line comments and every
   literal form (strings, plain integers, `v2`-style versions, `5m`-style durations) so both
   packages have something to assert comment / number / string highlighting against.
+- `router-readmodel-snapshot.keiro` — authored here (2026-07-15) to exercise the lexical
+  surface added since the initial corpus: the `module`/`layout` header, an aggregate
+  `snapshot` block, a `readmodel` node (`columns`/`feed`/`scope`/`shape`), a `router`
+  (`resolve stable via read-model …`, `dispatch-each`), a `workqueue` with provisioning
+  vocabulary, a `workflow` with `patch`/`continueAsNew`, string escape sequences
+  (`"…\n…"`), and signed (`-1`) / fractional (`1.5`) numeric literals. It backs the
+  reconciliation recorded in
+  `docs/plans/4-reconcile-highlighters-with-keiro-dsl-lexical-surface-20-new-reserved-words-string-escapes-signed-decimal-numbers.md`.
 
 ## Rules for consumers
 

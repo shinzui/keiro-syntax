@@ -44,6 +44,7 @@ function expectScope(code: string, content: string, scope: string) {
 
 const reservation = readFileSync(resolve(repoRoot, 'corpus/reservation.keiro'), 'utf8')
 const sampler = readFileSync(resolve(repoRoot, 'corpus/comments-and-literals.keiro'), 'utf8')
+const surface = readFileSync(resolve(repoRoot, 'corpus/router-readmodel-snapshot.keiro'), 'utf8')
 
 test('comments get the comment scope', () => {
   expectScope(sampler, '# keiro-dsl lexical sampler — comments, strings, numbers, durations, versions', 'comment.line.number-sign.keiro')
@@ -88,4 +89,30 @@ test('numbers get constant.numeric', () => {
 test('operators get keyword.operator', () => {
   expectScope(reservation, '-->', 'keyword.operator.keiro')
   expectScope(reservation, ':=', 'keyword.operator.keiro')
+})
+
+// --- Current lexical surface (20 new reserved words, escapes, decimals) ------
+
+test('new node introducers get keyword.declaration', () => {
+  expectScope(surface, 'router', 'keyword.declaration.keiro')
+  expectScope(surface, 'readmodel', 'keyword.declaration.keiro')
+})
+
+test('new reserved control words get keyword.control', () => {
+  expectScope(surface, 'snapshot', 'keyword.control.keiro')
+  expectScope(surface, 'resolve', 'keyword.control.keiro')
+  expectScope(surface, 'continueAsNew', 'keyword.control.keiro')
+})
+
+test('dashed reserved words get keyword.control', () => {
+  expectScope(surface, 'dispatch-each', 'keyword.control.keiro')
+  expectScope(surface, 'read-model', 'keyword.control.keiro')
+})
+
+test('string escapes get constant.character.escape', () => {
+  expectScope(surface, '\\n', 'constant.character.escape.keiro')
+})
+
+test('fractional decimals get constant.numeric', () => {
+  expectScope(surface, '1.5', 'constant.numeric.keiro')
 })

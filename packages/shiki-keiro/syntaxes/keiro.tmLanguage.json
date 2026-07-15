@@ -23,10 +23,13 @@
     "strings": {
       "name": "string.quoted.double.keiro",
       "begin": "\"",
-      "end": "\""
+      "end": "\"",
+      "patterns": [
+        { "match": "\\\\[\"\\\\ntr]", "name": "constant.character.escape.keiro" }
+      ]
     },
     "dashed-keywords": {
-      "match": "(?<![A-Za-z0-9_-])(?:status-map|dispatch-id|fired-event-id|on-appended|on-duplicate|on-failed|on-ok|on-reject|on-error|not-mine|unknown-status|max-attempts|dead-letter|kafka-key|kafka-cursor|cross-check)(?![A-Za-z0-9_-])",
+      "match": "(?<![A-Za-z0-9_-])(?:status-map|dispatch-id|fired-event-id|dispatch-each|read-model|on-appended|on-duplicate|on-failed|on-ok|on-reject|on-error|on-ambiguous|on-terminal|not-mine|unknown-status|max-attempts|dead-letter|kafka-key|kafka-cursor|cross-check|state-codec|shape-hash|full-envelope|dedupe-only|entire-log|fifo-throughput|fifo-roundrobin)(?![A-Za-z0-9_-])",
       "name": "keyword.control.keiro"
     },
     "decl-with-name": {
@@ -37,7 +40,7 @@
       }
     },
     "introducers": {
-      "match": "(?<![A-Za-z0-9_])(?:context|id|enum|rule|aggregate|process|contract|intake|emit|publisher|workqueue|dispatch|workflow|operation)(?![A-Za-z0-9_])",
+      "match": "(?<![A-Za-z0-9_])(?:context|id|enum|rule|aggregate|process|router|contract|intake|emit|publisher|workqueue|dispatch|readmodel|workflow|operation)(?![A-Za-z0-9_])",
       "name": "keyword.declaration.keiro"
     },
     "modifiers": {
@@ -61,13 +64,14 @@
       "name": "support.type.keiro"
     },
     "control-keywords": {
-      "match": "(?<![A-Za-z0-9_])(?:regs|states|command|event|wire|projection|guard|write|emit|goto|fields|accept|bind|dedupe|decode|disposition|map|queue|payload|retry|fanout|dedup|enqueue|seenIn|body|step|await|sleep|child|topic|ex|name|input|output|in|out|correlate|saga|stream|target|projections|on|advance|schedule|timer|fireAt|fire|source|key|value|run|signal|query|project|result|ordering|backoff|outboxId|messageId|idempotencyKey|discriminator|schemaVersion|derive|of|after|logical|physical|dlq|table|maxRetries|maxAttempts|delay|readModel|field|to|envelope)(?![A-Za-z0-9_])",
+      "match": "(?<![A-Za-z0-9_])(?:regs|states|command|event|wire|projection|snapshot|category|guard|write|emit|goto|fields|module|layout|prefixed|collocated|resolve|persist|patch|continueAsNew|columns|feed|scope|shape|accept|bind|dedupe|decode|disposition|map|queue|payload|retry|fanout|dedup|enqueue|seenIn|body|step|await|sleep|child|topic|ex|name|input|output|in|out|correlate|saga|stream|target|projections|on|advance|schedule|timer|fireAt|fire|source|key|value|run|signal|query|project|result|ordering|backoff|outboxId|messageId|idempotencyKey|discriminator|schemaVersion|derive|of|after|logical|physical|dlq|table|maxRetries|maxAttempts|delay|readModel|field|to|envelope|every|partial|header|schema|version|inline|row|halt|poison|rejected|group|provision|outcome|fixture|interval|retention|standard|unlogged|partitioned|unordered|off|strict|lenient)(?![A-Za-z0-9_])",
       "name": "keyword.control.keiro"
     },
     "numbers": {
       "patterns": [
         { "match": "\\bv[0-9]+\\b", "name": "constant.numeric.keiro" },
         { "match": "\\b[0-9]+[a-zA-Z]+\\b", "name": "constant.numeric.keiro" },
+        { "match": "\\b[0-9]+\\.[0-9]+\\b", "name": "constant.numeric.keiro" },
         { "match": "\\b[0-9]+\\b", "name": "constant.numeric.keiro" }
       ]
     },

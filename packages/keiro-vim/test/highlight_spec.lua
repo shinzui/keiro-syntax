@@ -65,6 +65,19 @@ expect(':=', 'keiroOperator')
 expect('true', 'keiroBoolean')
 expect('schemaVersion', 'keiroStatement')
 
+-- Current lexical surface: 20 new reserved words, string escapes, decimals.
+-- Several of these words also appear in the file's header comment, so anchor on
+-- code-only phrases; group_at reads the group at the phrase's first character.
+open('corpus/router-readmodel-snapshot.keiro')
+expect('router incidentRouter', 'keiroKeyword')
+expect('readmodel hospitalReadiness', 'keiroKeyword')
+expect('snapshot every', 'keiroStatement')
+expect('resolve stable', 'keiroStatement')
+expect('dispatch-each ActivateSurge', 'keiroStatement')
+expect('patch retry-window', 'keiroStatement')
+expect('\\n', 'keiroStringEscape')
+expect('1.5', 'keiroNumber')
+
 print(string.format('\n%d checks, %d failures', checks, failures))
 if failures > 0 then
   vim.cmd('cquit 1')
