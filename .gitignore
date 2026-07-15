@@ -11,3 +11,6 @@ dist/
 
 # Generated demo output
 packages/shiki-keiro/examples/keiro-demo.html
+
+# Scratch handoff from the agent to scripts/sync-keiro-dsl.sh
+.keiro-dsl-sync-subject
