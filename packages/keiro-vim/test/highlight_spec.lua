@@ -99,6 +99,83 @@ expect('deprecated', 'keiroModifier')
 expect('replay-only', 'keiroModifier')
 expect('goto', 'keiroStatement')
 
+-- Reserved-word coverage guard (keiro-dsl 75286d7).
+--
+-- `retiring` joined the parser's `reservedWords` in keiro-dsl 75286d7 without changing how the
+-- word is spelled or where it may appear, so that range needed no syntax-file edit. The
+-- standing risk it exposes is that the *next* word to join the list would simply not be in
+-- keiro.vim, and no hand-named assertion above would notice. This block closes that gap: it
+-- reads the reserved-keyword list out of Section 3 of spec/keiro-dsl-language-model.md — which
+-- is a verbatim copy of `reservedWords` — and asserts every word gets some keyword group.
+--
+-- The check is deliberately loose about *which* group. Section 6 of the spec splits the
+-- reserved words across four classes, and pinning each word to one would freeze that split
+-- instead of catching the failure that matters: a reserved word rendering as plain text.
+
+-- Read the words out of the first ```text fenced block under the "## Section 3" heading.
+local function reserved_words_from_spec()
+  local lines = vim.fn.readfile(repo_root .. '/spec/keiro-dsl-language-model.md')
+  local start, open_fence, close_fence
+  for i, line in ipairs(lines) do
+    if not start and line:sub(1, 12) == '## Section 3' then start = i
+    elseif start and not open_fence and line == '```text' then open_fence = i
+    elseif open_fence and line == '```' then close_fence = i break end
+  end
+  assert(start, 'spec has no "## Section 3" heading')
+  assert(open_fence, 'Section 3 has no ```text fenced block')
+  assert(close_fence, 'Section 3 fenced block is unterminated')
+  local words = {}
+  for i = open_fence + 1, close_fence - 1 do
+    for word in lines[i]:gmatch('%S+') do
+      words[#words + 1] = word
+    end
+  end
+  return words
+end
+
+local KEYWORDISH_GROUPS = {
+  keiroKeyword = true,    -- Declaration introducer
+  keiroStatement = true,  -- Control / section keyword
+  keiroModifier = true,   -- Modifier
+  keiroBoolean = true,    -- Language constant (true / false)
+  keiroConstant = true,   -- Language constant (HOLE, ...)
+}
+
+local reserved = reserved_words_from_spec()
+
+checks = checks + 1
+if #reserved ~= 71 then
+  failures = failures + 1
+  print(string.format('FAIL reserved-word count: want 71, got %d', #reserved))
+else
+  print(string.format('ok   reserved-word count -> %d', #reserved))
+end
+
+-- A scratch buffer with one word per line. 'buftype=nofile' keeps it off disk; without it the
+-- unsaved changes below make the closing 'quitall' fail with E37. Fill the buffer *before*
+-- setting the filetype: setting 'filetype' fires the FileType autocommand that sources
+-- syntax/keiro.vim, and doing that last means the rules apply to contents already present.
+vim.cmd('enew!')
+vim.bo.buftype = 'nofile'
+vim.bo.bufhidden = 'wipe'
+vim.bo.swapfile = false
+vim.api.nvim_buf_set_lines(0, 0, -1, false, reserved)
+vim.bo.filetype = 'keiro'
+vim.cmd('syntax sync fromstart')
+
+for i, word in ipairs(reserved) do
+  checks = checks + 1
+  local got = group_at(i, 1)
+  if KEYWORDISH_GROUPS[got] then
+    print(string.format('ok   %q -> %s', word, got))
+  else
+    failures = failures + 1
+    print(string.format('FAIL %q: want a keyword group, got %s', word, got))
+  end
+end
+
+vim.bo.modified = false
+
 print(string.format('\n%d checks, %d failures', checks, failures))
 if failures > 0 then
   vim.cmd('cquit 1')

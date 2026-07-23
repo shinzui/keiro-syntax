@@ -42,6 +42,40 @@ function expectScope(code: string, content: string, scope: string) {
   expect(scopes).toContain(scope)
 }
 
+// Every scope in the grammar that means "this word is a keyword of some kind" — the union of
+// Section 6's Declaration introducer, Control / section keyword, Modifier, and Language
+// constant rows. The reserved-word guard below asserts membership in this set rather than a
+// specific scope: Section 6 deliberately splits the reserved words across those four classes,
+// and pinning each word to one of them would freeze the split instead of catching the failure
+// that matters (a reserved word falling through to plain identifier text).
+const KEYWORDISH_SCOPES = new Set([
+  'keyword.declaration.keiro',
+  'keyword.control.keiro',
+  'storage.modifier.keiro',
+  'constant.language.keiro',
+  'constant.language.boolean.keiro',
+])
+
+// The reserved-keyword list from Section 3 of spec/keiro-dsl-language-model.md, which is a
+// verbatim copy of `reservedWords` in the keiro-dsl parser. Read it out of the spec rather
+// than duplicating it here, so the spec stays the single source and a word added there
+// without a matching grammar rule fails this suite by name.
+function reservedWordsFromSpec(): string[] {
+  const spec = readFileSync(resolve(repoRoot, 'spec/keiro-dsl-language-model.md'), 'utf8')
+  const lines = spec.split('\n')
+  const start = lines.findIndex((l) => l.startsWith('## Section 3'))
+  if (start < 0) throw new Error('spec has no "## Section 3" heading')
+  const open = lines.indexOf('```text', start)
+  if (open < 0) throw new Error('Section 3 has no ```text fenced block')
+  const close = lines.indexOf('```', open + 1)
+  if (close < 0) throw new Error('Section 3 fenced block is unterminated')
+  return lines
+    .slice(open + 1, close)
+    .join(' ')
+    .split(/\s+/)
+    .filter(Boolean)
+}
+
 const reservation = readFileSync(resolve(repoRoot, 'corpus/reservation.keiro'), 'utf8')
 const sampler = readFileSync(resolve(repoRoot, 'corpus/comments-and-literals.keiro'), 'utf8')
 const surface = readFileSync(resolve(repoRoot, 'corpus/router-readmodel-snapshot.keiro'), 'utf8')
@@ -154,4 +188,30 @@ test('an event prefix does not disturb the declaration it qualifies', () => {
 test('the deprecated event prefix is scoped like retiring', () => {
   expectScope(deprecatedReplayOnly, 'deprecated', 'storage.modifier.keiro')
   expectScope(deprecatedReplayOnly, 'replay-only', 'storage.modifier.keiro')
+})
+
+// --- Reserved-word coverage guard (keiro-dsl 75286d7) ------------------------
+//
+// `retiring` joined the parser's `reservedWords` in keiro-dsl 75286d7 without changing how
+// the word is spelled or where it may appear, so this range needed no grammar edit. The
+// standing risk it exposes is that the *next* word to join the list would simply not be in
+// the grammar, and no hand-named assertion would notice. These two tests close that gap.
+
+test('the spec Section 3 list holds the parser 71 reserved words', () => {
+  expect(reservedWordsFromSpec().length).toBe(71)
+})
+
+test('every reserved word is classified as a keyword by the grammar', () => {
+  // A one-word document is enough: apart from strings and comments — neither of which a bare
+  // word can start — the grammar carries no state between tokens.
+  const unclassified = reservedWordsFromSpec()
+    .map((word) => {
+      const scopes = scopesOf(word, word)
+      return { word, scopes }
+    })
+    .filter(({ scopes }) => !(scopes ?? []).some((s) => KEYWORDISH_SCOPES.has(s)))
+    .map(({ word, scopes }) => `${word}: ${JSON.stringify(scopes)}`)
+  // Assert on the collected list rather than per word, so a run that has drifted by several
+  // words names all of them at once.
+  expect(unclassified).toEqual([])
 })
