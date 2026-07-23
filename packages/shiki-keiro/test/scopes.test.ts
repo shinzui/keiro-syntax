@@ -45,6 +45,10 @@ function expectScope(code: string, content: string, scope: string) {
 const reservation = readFileSync(resolve(repoRoot, 'corpus/reservation.keiro'), 'utf8')
 const sampler = readFileSync(resolve(repoRoot, 'corpus/comments-and-literals.keiro'), 'utf8')
 const surface = readFileSync(resolve(repoRoot, 'corpus/router-readmodel-snapshot.keiro'), 'utf8')
+const replayOnly = readFileSync(
+  resolve(repoRoot, 'corpus/reservation-guard-tightened-twin.keiro'),
+  'utf8',
+)
 
 test('comments get the comment scope', () => {
   expectScope(sampler, '# keiro-dsl lexical sampler — comments, strings, numbers, durations, versions', 'comment.line.number-sign.keiro')
@@ -115,4 +119,17 @@ test('string escapes get constant.character.escape', () => {
 
 test('fractional decimals get constant.numeric', () => {
   expectScope(surface, '1.5', 'constant.numeric.keiro')
+})
+
+// --- The `replay-only` transition prefix (keiro-dsl 6c2c8fc) -----------------
+
+test('the replay-only transition marker gets storage.modifier', () => {
+  // Matching the trimmed content `replay-only` proves one rule claimed the whole
+  // dashed spelling rather than `replay` and `only` falling through separately.
+  expectScope(replayOnly, 'replay-only', 'storage.modifier.keiro')
+})
+
+test('a replay-only transition still highlights its clauses', () => {
+  expectScope(replayOnly, 'guard', 'keyword.control.keiro')
+  expectScope(replayOnly, '==', 'keyword.operator.keiro')
 })

@@ -36,6 +36,10 @@ syntax match keiroKeyword /\<dispatch\>-\@!/
 " --- Modifiers ------------------------------------------------------------
 syntax keyword keiroModifier deprecated upcast from consistency required stable
 syntax keyword keiroModifier strategy via policy prefix kind
+" The `replay-only` transition prefix is dashed, and '-' is not a keyword character, so it
+" needs 'match' and must cover the whole spelling — otherwise `replay` and `only` are seen
+" as two separate words and the marker is left plain.
+syntax match keiroModifier /\<replay-only\>/
 
 " --- Control / section keywords -------------------------------------------
 syntax keyword keiroStatement regs states command event wire projection guard

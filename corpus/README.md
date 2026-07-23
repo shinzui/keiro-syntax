@@ -8,9 +8,9 @@ that specific tokens receive specific classifications, per the taxonomy in
 
 ## Provenance
 
-The following five files were copied **verbatim** on 2026-06-10 from the keiro project's
-DSL test fixtures at
-`/Users/shinzui/Keikaku/bokuno/keiro/keiro-dsl/test/fixtures/`:
+The following files were copied **verbatim** from the keiro project's DSL test fixtures at
+`/Users/shinzui/Keikaku/bokuno/keiro/keiro-dsl/test/fixtures/`. The first five were copied
+on 2026-06-10:
 
 - `reservation.keiro` — an `aggregate` with `regs`, `states`, `command`/`event`, `wire`,
   and a `status-map`.
@@ -22,6 +22,15 @@ DSL test fixtures at
 
 Together these exercise every top-level node type and every lexical feature of keiro-dsl
 **except comments**, which the upstream fixtures omit.
+
+Copied later, as the parser's lexical surface grew:
+
+- `reservation-guard-tightened-twin.keiro` — copied on 2026-07-23 at keiro-dsl commit
+  `6c2c8fc623b0c3436a57c828a101fd20fbc3d91e`. It is `reservation.keiro` with the
+  `Unrequested -- RequestTransferReservation -->` guard tightened and a **`replay-only`**
+  twin transition covering the region the tightened guard removed. It is the corpus's only
+  sample of the `replay-only` transition prefix, and it backs the reconciliation recorded in
+  `docs/plans/5-highlight-the-replay-only-transition-marker.md`.
 
 The remaining files are **hand-written for this repository**:
 

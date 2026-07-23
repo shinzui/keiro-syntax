@@ -7,6 +7,7 @@ var keiro_tmLanguage_default = {
     { include: "#comments" },
     { include: "#strings" },
     { include: "#dashed-keywords" },
+    { include: "#dashed-modifiers" },
     { include: "#decl-with-name" },
     { include: "#introducers" },
     { include: "#modifiers" },
@@ -32,6 +33,10 @@ var keiro_tmLanguage_default = {
     "dashed-keywords": {
       match: "(?<![A-Za-z0-9_-])(?:status-map|dispatch-id|fired-event-id|dispatch-each|read-model|on-appended|on-duplicate|on-failed|on-ok|on-reject|on-error|on-ambiguous|on-terminal|not-mine|unknown-status|max-attempts|dead-letter|kafka-key|kafka-cursor|cross-check|state-codec|shape-hash|full-envelope|dedupe-only|entire-log|fifo-throughput|fifo-roundrobin)(?![A-Za-z0-9_-])",
       name: "keyword.control.keiro"
+    },
+    "dashed-modifiers": {
+      match: "(?<![A-Za-z0-9_-])(?:replay-only)(?![A-Za-z0-9_-])",
+      name: "storage.modifier.keiro"
     },
     "decl-with-name": {
       match: "\\b(aggregate|process|contract|intake|enum|command|event|workflow|operation|rule|id)\\b\\s+([A-Za-z_][A-Za-z0-9_]*)",

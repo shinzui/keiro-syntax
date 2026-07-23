@@ -134,6 +134,17 @@ words: `readmodel` introduces the read-model node, while `read-model` appears in
 router's `resolve stable via read-model X` clause. `dispatch-each` and `read-model` are the
 two dashed reserved words (match them before bare words — see Section 4's implementer note).
 
+**Not every keyword is a reserved word.** Reservation exists for one purpose: to stop the
+plain-identifier parser `ident` from swallowing a structural word. `ident` accepts only
+`[A-Za-z0-9_]` after the first character (Section 2), so a keyword written **with a dash**
+can never be produced by `ident` and therefore does not need reserving. Most dashed keywords
+are consequently absent from `reservedWords` — including `replay-only`, which the parser
+matches with `keyword "replay-only"` in `pTransition` but does not reserve. Those words live
+in Section 4 and are highlighted just the same. Do not "fix" their absence by adding them
+here: this list must stay a verbatim copy of `reservedWords` so it can be diffed against the
+parser mechanically. (`status-map`, `dispatch-each`, and `read-model` are dashed *and*
+reserved — a belt-and-braces choice by the parser author, not a requirement.)
+
 If the parser's `reservedWords` ever changes, the parser's list wins: update this section to
 match and record the difference in this repository's plan
 `docs/plans/4-reconcile-highlighters-with-keiro-dsl-lexical-surface-20-new-reserved-words-string-escapes-signed-decimal-numbers.md`
@@ -175,6 +186,21 @@ on-ok          on-reject       on-error      on-ambiguous  not-mine
 unknown-status max-attempts    dead-letter   kafka-key     kafka-cursor
 on-blocked     on-terminal     state-codec   shape-hash    full-envelope
 dedupe-only    entire-log      fifo-throughput fifo-roundrobin
+replay-only
+```
+
+`replay-only` is the one word in this list that is **not** a control keyword: it is a
+**Modifier** (Section 6), because it qualifies an aggregate transition rather than
+introducing a clause of one. It is an optional prefix on the transition line, marking a
+transition that is never taken by a new command and exists only so events written under a
+retired rule still have an edge during replay:
+
+```text
+replay-only Unrequested -- RequestTransferReservation -->
+  guard (divertStatus != TotalDivert || lifeCriticalOverride) && patientAcuity == RedTag
+  write reservationState := Held
+  emit  TransferReservationCreated
+  goto  Held
 ```
 
 The two **reserved** dashed words `dispatch-each` and `read-model` (Section 3) also require
@@ -226,8 +252,8 @@ to. Both packages must classify the identical literal words into the keyword cla
 | Token class | Members / pattern | TextMate scope | Vim group |
 |---|---|---|---|
 | Declaration introducer | the subset of reserved + contextual words that begin a top-level item or node: `context`, `id`, `enum`, `rule`, `aggregate`, `process`, `router`, `contract`, `intake`, `emit`, `publisher`, `workqueue`, `dispatch`, `readmodel`, `workflow`, `operation` | `keyword.declaration.keiro` | `Keyword` |
-| Control / section keyword | all other reserved keywords (Section 3) **and** all curated contextual keywords (Section 4), e.g. `regs`, `states`, `command`, `event`, `guard`, `write`, `goto`, `snapshot`, `module`, `layout`, `resolve`, `dispatch-each`, `read-model`, `category`, `persist`, `patch`, `continueAsNew`, `columns`, `feed`, `scope`, `shape`, `on`, `advance`, `schedule`, `timer`, `bind`, `accept`, `map`, `step`, `await`, ... | `keyword.control.keiro` | `Statement` |
-| Modifier | `deprecated`, `upcast`, `from`, `consistency`, `required`, `stable`, `strategy`, `via`, `policy`, `prefix`, `kind` | `storage.modifier.keiro` | `StorageClass` |
+| Control / section keyword | all other reserved keywords (Section 3) **and** all curated contextual keywords (Section 4) *except the words the Modifier row below claims*, e.g. `regs`, `states`, `command`, `event`, `guard`, `write`, `goto`, `snapshot`, `module`, `layout`, `resolve`, `dispatch-each`, `read-model`, `category`, `persist`, `patch`, `continueAsNew`, `columns`, `feed`, `scope`, `shape`, `on`, `advance`, `schedule`, `timer`, `bind`, `accept`, `map`, `step`, `await`, ... | `keyword.control.keiro` | `Statement` |
+| Modifier | `deprecated`, `upcast`, `from`, `consistency`, `required`, `stable`, `strategy`, `via`, `policy`, `prefix`, `kind`, and the dashed `replay-only` (the transition prefix — see Section 4; being dashed it must be matched before bare words) | `storage.modifier.keiro` | `StorageClass` |
 | Language constant | `true`, `false`, `HOLE`, `placeholder`, `skip`, `hole` | `constant.language.keiro` (give `true` / `false` the more specific `constant.language.boolean.keiro`) | `Boolean` for `true` / `false`, else `Constant` |
 | Primitive type | `Bool`, `Int`, `Text`, `Time`, `Id`, `Maybe`, `typeid`, `text`, `int` | `support.type.keiro` | `Type` |
 | Declaration-site type name | a CamelCase plain identifier appearing immediately after a declaration introducer that names a type (`enum X`, `aggregate X`, `contract X`, `command X`, `event X`, `id X`, `workflow X`, `operation X`, `process X`) | `entity.name.type.keiro` | `Type` |

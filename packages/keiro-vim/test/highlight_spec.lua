@@ -78,6 +78,13 @@ expect('patch retry-window', 'keiroStatement')
 expect('\\n', 'keiroStringEscape')
 expect('1.5', 'keiroNumber')
 
+-- The `replay-only` transition prefix (keiro-dsl 6c2c8fc). The guard/== checks prove the
+-- rest of the marked transition line still tokenizes normally.
+open('corpus/reservation-guard-tightened-twin.keiro')
+expect('replay-only', 'keiroModifier')
+expect('guard', 'keiroStatement')
+expect('==', 'keiroOperator')
+
 print(string.format('\n%d checks, %d failures', checks, failures))
 if failures > 0 then
   vim.cmd('cquit 1')
