@@ -85,6 +85,20 @@ expect('replay-only', 'keiroModifier')
 expect('guard', 'keiroStatement')
 expect('==', 'keiroOperator')
 
+-- The `retiring` event prefix (keiro-dsl 451acf2) and its `deprecated` sibling. The two
+-- `event ...` anchors prove the prefix does not disturb the declaration that follows it:
+-- the second reads the group at `event` on the *prefixed* line. (`keiroTypeName` is not
+-- asserted here — see docs/plans/6-highlight-the-retiring-event-marker.md, Surprises.)
+open('corpus/reservation-retiring.keiro')
+expect('retiring', 'keiroModifier')
+expect('event TransferReservationCreated', 'keiroStatement')
+expect('event TransferReservationConfirmed', 'keiroStatement')
+
+open('corpus/reservation-deprecated-replay-only.keiro')
+expect('deprecated', 'keiroModifier')
+expect('replay-only', 'keiroModifier')
+expect('goto', 'keiroStatement')
+
 print(string.format('\n%d checks, %d failures', checks, failures))
 if failures > 0 then
   vim.cmd('cquit 1')

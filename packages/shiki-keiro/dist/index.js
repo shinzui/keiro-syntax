@@ -50,7 +50,7 @@ var keiro_tmLanguage_default = {
       name: "keyword.declaration.keiro"
     },
     modifiers: {
-      match: "(?<![A-Za-z0-9_])(?:deprecated|upcast|from|consistency|required|stable|strategy|via|policy|prefix|kind)(?![A-Za-z0-9_])",
+      match: "(?<![A-Za-z0-9_])(?:deprecated|retiring|upcast|from|consistency|required|stable|strategy|via|policy|prefix|kind)(?![A-Za-z0-9_])",
       name: "storage.modifier.keiro"
     },
     constants: {

@@ -135,15 +135,23 @@ router's `resolve stable via read-model X` clause. `dispatch-each` and `read-mod
 two dashed reserved words (match them before bare words — see Section 4's implementer note).
 
 **Not every keyword is a reserved word.** Reservation exists for one purpose: to stop the
-plain-identifier parser `ident` from swallowing a structural word. `ident` accepts only
-`[A-Za-z0-9_]` after the first character (Section 2), so a keyword written **with a dash**
-can never be produced by `ident` and therefore does not need reserving. Most dashed keywords
-are consequently absent from `reservedWords` — including `replay-only`, which the parser
-matches with `keyword "replay-only"` in `pTransition` but does not reserve. Those words live
-in Section 4 and are highlighted just the same. Do not "fix" their absence by adding them
-here: this list must stay a verbatim copy of `reservedWords` so it can be diffed against the
-parser mechanically. (`status-map`, `dispatch-each`, and `read-model` are dashed *and*
-reserved — a belt-and-braces choice by the parser author, not a requirement.)
+plain-identifier parser `ident` from swallowing a structural word. Two different reasons put
+a keyword outside `reservedWords`, and both are normal:
+
+- A keyword written **with a dash** *cannot* need reserving. `ident` accepts only
+  `[A-Za-z0-9_]` after the first character (Section 2), so such a word can never be produced
+  by `ident` and there is nothing to reserve against. Most dashed keywords are consequently
+  absent — including `replay-only`, which the parser matches with `keyword "replay-only"` in
+  `pTransition` but does not reserve. (`status-map`, `dispatch-each`, and `read-model` are
+  dashed *and* reserved — a belt-and-braces choice by the parser author, not a requirement.)
+- A keyword written as a **bare word** *could* be reserved, and sometimes simply is not. The
+  parser matches `retiring` with `keyword "retiring"` in `pEvent`, in the same optional slot
+  as `deprecated` — yet `deprecated` is reserved and `retiring` is not. Do not read anything
+  into the asymmetry; the parser reserves a word when its author chose to.
+
+Either way those words live in Section 4 and are highlighted just the same. Do not "fix"
+their absence by adding them here: this list must stay a verbatim copy of `reservedWords` so
+it can be diffed against the parser mechanically.
 
 If the parser's `reservedWords` ever changes, the parser's list wins: update this section to
 match and record the difference in this repository's plan
@@ -172,7 +180,19 @@ maxAttempts  delay       readModel   field       to          envelope
 every        partial     header      schema      version     inline
 row          halt        poison      rejected    group       provision
 outcome      fixture     interval    retention   standard    unlogged
-partitioned  unordered   off         strict      lenient
+partitioned  unordered   off         strict      lenient     retiring
+```
+
+`retiring` is an optional prefix on an **event declaration**, occupying the same slot as the
+reserved `deprecated` (parser `pEvent`: `option (False, False) (choice [(True, False) <$
+keyword "retiring", (False, True) <$ keyword "deprecated"])`, immediately before
+`keyword "event"`). It marks an event on its way out of the write path that must keep a live
+emitting transition for now; `deprecated` marks one already off the write path. The two are
+mutually exclusive and are classified identically — both are **Modifiers** (Section 6):
+
+```text
+event TransferReservationCreated   = fields(RequestTransferReservation)
+retiring event TransferReservationConfirmed { reservationId hospitalId commandId }
 ```
 
 ### Dashed contextual keywords (match-before-bare-words)
@@ -253,7 +273,7 @@ to. Both packages must classify the identical literal words into the keyword cla
 |---|---|---|---|
 | Declaration introducer | the subset of reserved + contextual words that begin a top-level item or node: `context`, `id`, `enum`, `rule`, `aggregate`, `process`, `router`, `contract`, `intake`, `emit`, `publisher`, `workqueue`, `dispatch`, `readmodel`, `workflow`, `operation` | `keyword.declaration.keiro` | `Keyword` |
 | Control / section keyword | all other reserved keywords (Section 3) **and** all curated contextual keywords (Section 4) *except the words the Modifier row below claims*, e.g. `regs`, `states`, `command`, `event`, `guard`, `write`, `goto`, `snapshot`, `module`, `layout`, `resolve`, `dispatch-each`, `read-model`, `category`, `persist`, `patch`, `continueAsNew`, `columns`, `feed`, `scope`, `shape`, `on`, `advance`, `schedule`, `timer`, `bind`, `accept`, `map`, `step`, `await`, ... | `keyword.control.keiro` | `Statement` |
-| Modifier | `deprecated`, `upcast`, `from`, `consistency`, `required`, `stable`, `strategy`, `via`, `policy`, `prefix`, `kind`, and the dashed `replay-only` (the transition prefix — see Section 4; being dashed it must be matched before bare words) | `storage.modifier.keiro` | `StorageClass` |
+| Modifier | `deprecated`, `retiring` (the two mutually exclusive event prefixes — see Section 4), `upcast`, `from`, `consistency`, `required`, `stable`, `strategy`, `via`, `policy`, `prefix`, `kind`, and the dashed `replay-only` (the transition prefix — see Section 4; being dashed it must be matched before bare words) | `storage.modifier.keiro` | `StorageClass` |
 | Language constant | `true`, `false`, `HOLE`, `placeholder`, `skip`, `hole` | `constant.language.keiro` (give `true` / `false` the more specific `constant.language.boolean.keiro`) | `Boolean` for `true` / `false`, else `Constant` |
 | Primitive type | `Bool`, `Int`, `Text`, `Time`, `Id`, `Maybe`, `typeid`, `text`, `int` | `support.type.keiro` | `Type` |
 | Declaration-site type name | a CamelCase plain identifier appearing immediately after a declaration introducer that names a type (`enum X`, `aggregate X`, `contract X`, `command X`, `event X`, `id X`, `workflow X`, `operation X`, `process X`) | `entity.name.type.keiro` | `Type` |

@@ -34,7 +34,10 @@ syntax keyword keiroKeyword intake emit publisher workqueue readmodel workflow o
 syntax match keiroKeyword /\<dispatch\>-\@!/
 
 " --- Modifiers ------------------------------------------------------------
-syntax keyword keiroModifier deprecated upcast from consistency required stable
+" `retiring` and `deprecated` are the two mutually exclusive event prefixes: an event on its
+" way off the write path, and one already off it. Both qualify the declaration `event`
+" introduces, so both are modifiers rather than statements.
+syntax keyword keiroModifier deprecated retiring upcast from consistency required stable
 syntax keyword keiroModifier strategy via policy prefix kind
 " The `replay-only` transition prefix is dashed, and '-' is not a keyword character, so it
 " needs 'match' and must cover the whole spelling — otherwise `replay` and `only` are seen

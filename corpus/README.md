@@ -31,6 +31,15 @@ Copied later, as the parser's lexical surface grew:
   twin transition covering the region the tightened guard removed. It is the corpus's only
   sample of the `replay-only` transition prefix, and it backs the reconciliation recorded in
   `docs/plans/5-highlight-the-replay-only-transition-marker.md`.
+- `reservation-retiring.keiro` — copied on 2026-07-23 at keiro-dsl commit
+  `451acf2188005211c2d2fe81835e6bff0a4c0580`. It is `reservation.keiro` with
+  `TransferReservationConfirmed` declared as a **`retiring` event** while it still keeps a
+  live emitting transition. It is the corpus's only sample of the `retiring` event prefix.
+- `reservation-deprecated-replay-only.keiro` — copied on 2026-07-23 at the same keiro-dsl
+  commit. It is the other end of the same retirement lifecycle: the identical event declared
+  **`deprecated`**, with its emitting transition marked `replay-only`. It is the corpus's only
+  sample of the `deprecated` event prefix. Both files back the reconciliation recorded in
+  `docs/plans/6-highlight-the-retiring-event-marker.md`.
 
 The remaining files are **hand-written for this repository**:
 

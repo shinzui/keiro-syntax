@@ -49,6 +49,11 @@ const replayOnly = readFileSync(
   resolve(repoRoot, 'corpus/reservation-guard-tightened-twin.keiro'),
   'utf8',
 )
+const retiring = readFileSync(resolve(repoRoot, 'corpus/reservation-retiring.keiro'), 'utf8')
+const deprecatedReplayOnly = readFileSync(
+  resolve(repoRoot, 'corpus/reservation-deprecated-replay-only.keiro'),
+  'utf8',
+)
 
 test('comments get the comment scope', () => {
   expectScope(sampler, '# keiro-dsl lexical sampler — comments, strings, numbers, durations, versions', 'comment.line.number-sign.keiro')
@@ -132,4 +137,21 @@ test('the replay-only transition marker gets storage.modifier', () => {
 test('a replay-only transition still highlights its clauses', () => {
   expectScope(replayOnly, 'guard', 'keyword.control.keiro')
   expectScope(replayOnly, '==', 'keyword.operator.keiro')
+})
+
+// --- The `retiring` event prefix (keiro-dsl 451acf2) -------------------------
+
+test('the retiring event prefix gets storage.modifier', () => {
+  expectScope(retiring, 'retiring', 'storage.modifier.keiro')
+})
+
+test('an event prefix does not disturb the declaration it qualifies', () => {
+  // `#modifiers` claims `retiring` at its own column, which is left of `event`, so it wins
+  // on position; `#decl-with-name` then still claims the type name on the same line.
+  expectScope(retiring, 'TransferReservationConfirmed', 'entity.name.type.keiro')
+})
+
+test('the deprecated event prefix is scoped like retiring', () => {
+  expectScope(deprecatedReplayOnly, 'deprecated', 'storage.modifier.keiro')
+  expectScope(deprecatedReplayOnly, 'replay-only', 'storage.modifier.keiro')
 })
