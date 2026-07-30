@@ -35,6 +35,14 @@ parser, a Haskell file using the `megaparsec` library:
 list in Section 3 is copied verbatim from that file's `reservedWords` list and must match it
 exactly.
 
+**Out of scope: the `.keiro-workspace` manifest.** keiro-dsl also has a *second* file format,
+a service workspace manifest with the extension `.keiro-workspace`, parsed by a different
+module (`/Users/shinzui/Keikaku/bokuno/keiro/keiro-dsl/src/Keiro/Dsl/Workspace.hs`) with its
+own grammar. Neither this document nor either package covers it — both packages register only
+for `.keiro`. Its complete lexical surface is written down under Surprises & Discoveries in
+`docs/plans/8-highlight-consumer-owned-mapped-types-and-their-wire-shapes.md`, so a future
+plan that decides to highlight it starts from recorded facts rather than fresh research.
+
 
 ## Section 2 — Comments, strings, numbers, identifiers
 
@@ -68,10 +76,11 @@ There are three numeric forms. A highlighter should treat all three as the **Num
 class (Section 6):
 
 - **Plain decimal integers** — `[0-9]+` (e.g. `0`, `1`, `10`, `2024`). In a register
-  initializer the integer may carry a leading `-` sign (`-?[0-9]+`, e.g. `count Int = -1`;
-  parser `signedDecimalText`). Because `-` is also the transition/arrow operator, a purely
-  lexical highlighter colors the digits as a number and the `-` as an operator — that is the
-  correct, non-over-reaching behavior.
+  initializer, and as the default value of a mapped-type wire field's `on-missing=` clause
+  (Section 4), the integer may carry a leading `-` sign (`-?[0-9]+`, e.g. `count Int = -1`
+  and `on-missing=-1`; parsers `signedDecimalText` and `integerLiteral`). Because `-` is also
+  the transition/arrow operator, a purely lexical highlighter colors the digits as a number
+  and the `-` as an operator — that is the correct, non-over-reaching behavior.
 - **Fractional decimals** — a digit run, a `.`, and a digit run, `[0-9]+\.[0-9]+` (e.g. a
   backoff `multiplier=1.5`; parser `decimalText`). Match this before the plain integer so
   `1.5` is one number and not `1` `.` `5`.
@@ -112,27 +121,28 @@ There are three identifier shapes:
 These are the words the parser forbids as bare identifiers — the `reservedWords` list in
 `Parser.hs`. Because a plain identifier equal to one of these is always treated as the
 keyword, they are **always** highlighted as keywords, regardless of context. The list is
-copied verbatim from the parser (order preserved) and contains exactly **71** words:
+copied verbatim from the parser (order preserved) and contains exactly **72** words:
 
 ```text
 context   module    layout    prefixed      collocated  id
-enum      rule      ex        aggregate     regs        states
-command   event     wire      projection    snapshot    category
-guard     write     emit      goto          fields      status-map
-true      false     retiring  deprecated    upcast      from
-HOLE      process   router    dispatch-each resolve     read-model
-dispatch  intake    contract  topic         accept      bind
-dedupe    persist   decode    disposition   publisher   map
-workqueue queue     payload   retry         fanout      dedup
-enqueue   seenIn    workflow  operation     consistency body
-step      await     sleep     child         patch       continueAsNew
-readmodel columns   feed      scope         shape
+enum      rule      mapped    ex            aggregate   regs
+states    command   event     wire          projection  snapshot
+category  guard     write     emit          goto        fields
+status-map true     false     retiring      deprecated  upcast
+from      HOLE      process   router        dispatch-each resolve
+read-model dispatch intake    contract      topic       accept
+bind      dedupe    persist   decode        disposition publisher
+map       workqueue queue     payload       retry       fanout
+dedup     enqueue   seenIn    workflow      operation   consistency
+body      step      await     sleep         child       patch
+continueAsNew readmodel columns feed        scope       shape
 ```
 
 Note that `readmodel` (no dash) and `read-model` (with a dash) are **two distinct** reserved
 words: `readmodel` introduces the read-model node, while `read-model` appears inside a
-router's `resolve stable via read-model X` clause. `dispatch-each` and `read-model` are the
-two dashed reserved words (match them before bare words — see Section 4's implementer note).
+router's `resolve stable via read-model X` clause. `status-map`, `dispatch-each`, and
+`read-model` are the three dashed reserved words (match them before bare words — see Section
+4's implementer note).
 
 `retiring` and `deprecated` are the two mutually exclusive optional prefixes on an **event
 declaration**, occupying one shared slot (parser `pEvent`: `option (False, False) (choice
@@ -166,18 +176,28 @@ a keyword outside `reservedWords`, and both are normal:
   was a bare unreserved keyword until keiro-dsl commit `75286d7`, which added it to this list
   without changing a single thing about how the word is spelled or where it may appear.
 
+  The largest example so far is the **mapped type declaration** (Section 4's mapped-type
+  subsection). keiro-dsl commit `430c3d2` added 242 lines of new parser and 33 new words to
+  the language, and reserved exactly one of them — `mapped`, the word that begins the
+  declaration. Everything inside the declaration's `{ … }` braces is unambiguous without
+  reservation, so nothing inside it was reserved. **A stable Section 3 therefore does not mean
+  a stable language:** a sync that finds `reservedWords` unchanged must still read the rest of
+  `Parser.hs`.
+
 Either way those words live in Section 4 and are highlighted just the same. Do not "fix"
 their absence by adding them here: this list must stay a verbatim copy of `reservedWords` so
 it can be diffed against the parser mechanically.
 
 If the parser's `reservedWords` ever changes, the parser's list wins: update this section to
 match and record the difference under Surprises & Discoveries in the `docs/plans/` ExecPlan
-that performs the reconciliation. Two such changes are on record so far: 50 → 70 words in
+that performs the reconciliation. Three such changes are on record so far: 50 → 70 words in
 `docs/plans/4-reconcile-highlighters-with-keiro-dsl-lexical-surface-20-new-reserved-words-string-escapes-signed-decimal-numbers.md`,
-and 70 → 71 (`retiring`) in
-`docs/plans/7-reconcile-the-reserved-word-list-retiring-is-now-reserved.md`. Both package test
-suites read the list above and assert every word in it is classified as a keyword, so a word
-added here without a matching highlighter rule fails the suites by name.
+70 → 71 (`retiring`) in
+`docs/plans/7-reconcile-the-reserved-word-list-retiring-is-now-reserved.md`, and 71 → 72
+(`mapped`) in
+`docs/plans/8-highlight-consumer-owned-mapped-types-and-their-wire-shapes.md`. Both package
+test suites read the list above and assert every word in it is classified as a keyword, so a
+word added here without a matching highlighter rule fails the suites by name.
 
 
 ## Section 4 — Curated contextual keywords
@@ -203,7 +223,16 @@ every        partial     header      schema      version     inline
 row          halt        poison      rejected    group       provision
 outcome      fixture     interval    retention   standard    unlogged
 partitioned  unordered   off         strict      lenient
+as           binding     codec       constructor contents    fixtures
+haskell      ignore      initial     null        object      opaque
+optional     package     record      reject      string      structural
+tag          type        union
 ```
+
+The last three-and-a-bit rows — `as` through `union` — are the **mapped type declaration**
+vocabulary, described in its own subsection below. They are listed here in alphabetical order
+rather than in the order they appear in a declaration, because this grid is a flat membership
+list and nothing else in it is ordered either.
 
 ### Dashed contextual keywords (match-before-bare-words)
 
@@ -216,8 +245,23 @@ on-ok          on-reject       on-error      on-ambiguous  not-mine
 unknown-status max-attempts    dead-letter   kafka-key     kafka-cursor
 on-blocked     on-terminal     state-codec   shape-hash    full-envelope
 dedupe-only    entire-log      fifo-throughput fifo-roundrobin
-replay-only
+replay-only    cross-check     binding-version canonical-type on-missing
+tagged-object  unknown-fields
 ```
+
+The last five — `binding-version` through `unknown-fields` — belong to the **mapped type
+declaration** described below. `cross-check` is not new: it is a real `keyword "cross-check"`
+in `Parser.hs` (it appears in an intake `bind messageId from header "…" required cross-check
+body` clause) that both packages have matched since the reconciliation recorded in
+`docs/plans/4-reconcile-highlighters-with-keiro-dsl-lexical-surface-20-new-reserved-words-string-escapes-signed-decimal-numbers.md`;
+this list simply never named it.
+
+One word here is a curated survivor with no current parser backing: **`on-blocked`** matches
+nothing in `Parser.hs` today. It is kept because this section is explicitly a *curated* set
+rather than a mechanical copy — `output`, in the bare grid above, is in the same position —
+and because both packages match it, so the section's claim that "the following curated set is
+highlighted as keywords by both packages" is true as written. Do not read a curated word's
+presence here as proof the parser accepts it; only Section 3 makes that promise.
 
 `replay-only` is the one word in this list that is **not** a control keyword: it is a
 **Modifier** (Section 6), because it qualifies an aggregate transition rather than
@@ -233,14 +277,99 @@ replay-only Unrequested -- RequestTransferReservation -->
   goto  Held
 ```
 
-The two **reserved** dashed words `dispatch-each` and `read-model` (Section 3) also require
-this match-before-bare-words treatment.
+The three **reserved** dashed words `status-map`, `dispatch-each`, and `read-model` (Section
+3) also require this match-before-bare-words treatment.
 
 **Implementer note:** because these contain dashes, a highlighter **must match them before**
 matching bare keywords or identifiers. Otherwise the leading segment (`on`, `max`, `dead`,
 ...) is matched first and the rest of the word is mis-colored. In a TextMate grammar this
 means placing these multi-segment patterns earlier in the pattern list; in Vim it means
 defining their `syntax match` (or `syntax keyword` with the dashed spelling) so it wins.
+
+The hazard is narrower than it looks, and knowing exactly how narrow saves work. It only
+bites when a **bare keyword is a prefix** of a dashed keyword: `on` of `on-ok`, `dispatch` of
+`dispatch-each`, `binding` of `binding-version`. A bare keyword appearing in the *interior* of
+a dashed word is harmless in both engines — `status-map` survives even though `map` is a
+keyword, and `unknown-fields` survives even though `fields` is one, because both engines
+prefer the match that starts earlier in the line. For the prefix cases, Vim needs the bare
+word declared as a `syntax match … /\<word\>-\@!/` rather than a `syntax keyword`, because
+Vim's `syntax keyword` outranks a `syntax match` that begins at the same column. A TextMate
+grammar needs no such trick, only the dashed rule listed earlier in its `patterns` array.
+
+### The mapped type declaration
+
+A `.keiro` file can declare a **consumer-owned mapped type**: a Haskell data type that lives
+in a *different* package, together with an explicit description of how it is encoded on the
+wire. The declaration begins with the reserved word `mapped` (Section 3) and supplies 26 of
+this section's curated words — 21 bare and 5 dashed. None of them is reserved, because
+everything inside the declaration's `{ … }` braces is unambiguous without reservation, so a
+reader of Section 3 alone would never learn that these words exist. Hence this subsection.
+
+There are two families. `mapped structural …` describes the encoding field by field and comes
+in three **shapes** — `record` (a product type, encoded as a JSON object), `enum` (nullary
+constructors, encoded as a JSON string), and `union` (a sum type with payloads, encoded as a
+tagged JSON object). `mapped opaque …` does not describe the encoding at all; it names an
+existing codec by id and version. A worked example of the first, which uses every clause and
+every value form the record shape admits:
+
+```text
+mapped structural record ArtifactInfo {
+  haskell package=artifact-domain module=Example.Artifact.Domain type=ArtifactInfo
+  binding = "Example.Artifact.KeiroBindings.artifactInfoBinding"
+  binding-version = "1"
+  canonical-type = "example.artifact.ArtifactInfo.v1"
+  fixtures = "Example.Artifact.KeiroBindings.artifactInfoCases"
+  initial = "Example.Artifact.KeiroBindings.emptyArtifactInfo"
+  wire object constructor=ArtifactInfo unknown-fields=reject {
+    key         as "key"         : Text                 required
+    kind        as "kind"        : ArtifactKind         optional on-missing=Guide
+    description as "description" : Optional Text        optional on-missing=null
+    tags        as "tags"        : List Text            optional on-missing=[]
+    attributes  as "attributes"  : Map Text             optional on-missing={}
+    revision    as "revision"    : Natural              required
+    observedAt  as "observedAt"  : Time                 required
+    extra       as "extra"       : Json                 required
+  }
+}
+```
+
+The `enum` shape replaces the `wire object …` block with `wire string { Ctor as "tag" … }`,
+and the `union` shape with
+`wire tagged-object tag="tag" contents="contents" unknown-fields=reject { Ctor as "tag" : Type … }`
+where each arm's `: Type` payload is optional. A `mapped opaque X { … }` block carries only
+`haskell`, `codec`, `version`, `fixtures`, and `initial`.
+
+Four facts a highlighter implementer needs:
+
+- **The type slot accepts exactly ten spellings** (parser `pMappedTypeExpr`): `Text`, `Int`,
+  `Bool`, `Natural`, `Time` — with `UTCTime` as an accepted alias for `Time` — `Json`, the
+  one-argument constructors `Optional`, `List`, `Map`, and a bare identifier naming another
+  mapped type. All nine literal spellings are **Primitive types** in Section 6, alongside the
+  pre-existing `Int` and `Text`. Note that `Map` (capital) is a primitive type while the
+  reserved `map` (lowercase, Section 3) is a control keyword: they are different words, and
+  both packages match case-sensitively.
+- **The `on-missing=` slot accepts exactly seven value forms** (parser `pOnMissing`): `null`,
+  `[]`, `{}`, `true`, `false`, a quoted string, a signed integer, or a bare constructor name.
+  `null` is a **Language constant** in Section 6, like `HOLE`; `true` and `false` already are.
+  The two empty-collection literals `[]` and `{}` render as **uncolored punctuation**: Section
+  5 has never claimed brackets or braces, and both packages leave every `{ … }` field list and
+  `project [ … ]` list uncolored today. Coloring them for these two literals alone would
+  restyle every existing `.keiro` file, so they are deliberately left alone.
+- **`structural`, `opaque`, `record`, `union`, and the field-level `optional` are Modifiers**
+  in Section 6, not control keywords: they qualify the declaration `mapped` introduces rather
+  than introducing one themselves. `optional` is `required`'s partner in one parser `choice`,
+  and `required` has been a Modifier since plan 4. The visible consequence of classifying by
+  role rather than by position is that `mapped structural enum X` shows `enum` in the
+  *introducer* color while `mapped structural record X` shows `record` in the *modifier* color
+  — because `enum` is a reserved word that is unconditionally an introducer everywhere. That
+  asymmetry is inherent to lexical highlighting and is not worth working around.
+- **`initial` is legal both as a clause label here and as an ordinary identifier**, and both
+  readings appear in the upstream fixture six lines apart: `initial = "…"` inside the mapped
+  block, and `currentArtifact ArtifactInfo = initial` in an aggregate's `regs` block, where
+  the parser reads it with plain `ident`. Both packages color both occurrences as a keyword.
+  That is Section 1's lexical-highlighting rule working as designed, not a bug — `key`,
+  `value`, `field`, `table`, `row`, and `group` have all been unconditional keywords since
+  plan 4 and can all appear as ordinary names too.
 
 
 ## Section 5 — Operators and punctuation
@@ -281,12 +410,12 @@ to. Both packages must classify the identical literal words into the keyword cla
 
 | Token class | Members / pattern | TextMate scope | Vim group |
 |---|---|---|---|
-| Declaration introducer | the subset of reserved + contextual words that begin a top-level item or node: `context`, `id`, `enum`, `rule`, `aggregate`, `process`, `router`, `contract`, `intake`, `emit`, `publisher`, `workqueue`, `dispatch`, `readmodel`, `workflow`, `operation` | `keyword.declaration.keiro` | `Keyword` |
-| Control / section keyword | all other reserved keywords (Section 3) **and** all curated contextual keywords (Section 4) *except the words the Modifier row below claims*, e.g. `regs`, `states`, `command`, `event`, `guard`, `write`, `goto`, `snapshot`, `module`, `layout`, `resolve`, `dispatch-each`, `read-model`, `category`, `persist`, `patch`, `continueAsNew`, `columns`, `feed`, `scope`, `shape`, `on`, `advance`, `schedule`, `timer`, `bind`, `accept`, `map`, `step`, `await`, ... | `keyword.control.keiro` | `Statement` |
-| Modifier | `deprecated`, `retiring` (the two mutually exclusive event prefixes — see Section 3), `upcast`, `from`, `consistency`, `required`, `stable`, `strategy`, `via`, `policy`, `prefix`, `kind`, and the dashed `replay-only` (the transition prefix — see Section 4; being dashed it must be matched before bare words) | `storage.modifier.keiro` | `StorageClass` |
-| Language constant | `true`, `false`, `HOLE`, `placeholder`, `skip`, `hole` | `constant.language.keiro` (give `true` / `false` the more specific `constant.language.boolean.keiro`) | `Boolean` for `true` / `false`, else `Constant` |
-| Primitive type | `Bool`, `Int`, `Text`, `Time`, `Id`, `Maybe`, `typeid`, `text`, `int` | `support.type.keiro` | `Type` |
-| Declaration-site type name | a CamelCase plain identifier appearing immediately after a declaration introducer that names a type (`enum X`, `aggregate X`, `contract X`, `command X`, `event X`, `id X`, `workflow X`, `operation X`, `process X`) | `entity.name.type.keiro` | `Type` |
+| Declaration introducer | the subset of reserved + contextual words that begin a top-level item or node: `context`, `id`, `enum`, `rule`, `mapped`, `aggregate`, `process`, `router`, `contract`, `intake`, `emit`, `publisher`, `workqueue`, `dispatch`, `readmodel`, `workflow`, `operation` | `keyword.declaration.keiro` | `Keyword` |
+| Control / section keyword | all other reserved keywords (Section 3) **and** all curated contextual keywords (Section 4) *except the words the Modifier and Language-constant rows below claim*, e.g. `regs`, `states`, `command`, `event`, `wire`, `guard`, `write`, `goto`, `snapshot`, `module`, `layout`, `resolve`, `dispatch-each`, `read-model`, `category`, `persist`, `patch`, `continueAsNew`, `columns`, `feed`, `scope`, `shape`, `on`, `advance`, `schedule`, `timer`, `bind`, `accept`, `map`, `step`, `await`, and the mapped-type vocabulary `haskell`, `package`, `type`, `binding`, `binding-version`, `canonical-type`, `codec`, `fixtures`, `initial`, `object`, `constructor`, `string`, `tagged-object`, `tag`, `contents`, `as`, `unknown-fields`, `reject`, `ignore`, `on-missing`, ... | `keyword.control.keiro` | `Statement` |
+| Modifier | `deprecated`, `retiring` (the two mutually exclusive event prefixes — see Section 3), `upcast`, `from`, `consistency`, `required`, `stable`, `strategy`, `via`, `policy`, `prefix`, `kind`, the mapped-type words `structural`, `opaque`, `record`, `union` (which select the family and shape of a `mapped` declaration) and `optional` (`required`'s partner on a wire field — see Section 4), and the dashed `replay-only` (the transition prefix — see Section 4; being dashed it must be matched before bare words) | `storage.modifier.keiro` | `StorageClass` |
+| Language constant | `true`, `false`, `null` (the `on-missing=null` sentinel — see Section 4), `HOLE`, `placeholder`, `skip`, `hole` | `constant.language.keiro` (give `true` / `false` the more specific `constant.language.boolean.keiro`; `null` takes the general scope) | `Boolean` for `true` / `false`, else `Constant` |
+| Primitive type | `Bool`, `Int`, `Text`, `Time`, `Id`, `Maybe`, `typeid`, `text`, `int`, and the mapped-type spellings `Natural`, `UTCTime` (an alias for `Time`), `Json`, `Optional`, `List`, `Map` (see Section 4 — `Map` capitalized is a type, the reserved lowercase `map` is a control keyword, and both packages match case-sensitively) | `support.type.keiro` | `Type` |
+| Declaration-site type name | a CamelCase plain identifier appearing immediately after a declaration introducer that names a type (`enum X`, `aggregate X`, `contract X`, `command X`, `event X`, `id X`, `workflow X`, `operation X`, `process X`) or immediately after a `mapped` declaration's shape word (`record X`, `union X`, `opaque X`; `mapped structural enum X` is already covered by the `enum X` case) | `entity.name.type.keiro` | `Type` |
 | String | `"..."` (Section 2) | `string.quoted.double.keiro` | `String` |
 | String escape | one of `\"`, `\\`, `\n`, `\t`, `\r` inside a string (Section 2) | `constant.character.escape.keiro` | `SpecialChar` |
 | Number | integer, `[0-9]+\.[0-9]+` fractional, `v[0-9]+`, and `[0-9]+[smh]` duration (Section 2) | `constant.numeric.keiro` | `Number` |

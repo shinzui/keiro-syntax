@@ -40,6 +40,16 @@ Copied later, as the parser's lexical surface grew:
   **`deprecated`**, with its emitting transition marked `replay-only`. It is the corpus's only
   sample of the `deprecated` event prefix. Both files back the reconciliation recorded in
   `docs/plans/6-highlight-the-retiring-event-marker.md`.
+- `consumer-mapped-types.keiro` — copied on 2026-07-29 at keiro-dsl commit
+  `430c3d2cca0f491697d7e67a85362b78718a50be`, from that commit's
+  `keiro-dsl/test/fixtures/consumer-types.keiro`. It is the corpus's sample of the
+  **consumer-owned mapped type declaration**: all four declaration forms
+  (`mapped structural record` / `enum` / `union` and `mapped opaque`), every `on-missing`
+  default value shape, and nine of the ten spellings the wire type slot accepts — including
+  `Natural`, `Json`, `Optional`, `List`, and `Map`. The `aggregate` beneath the declarations
+  consumes the mapped types, so both suites can also check that a mapped declaration leaves
+  the rest of the file tokenizing normally. It backs the reconciliation recorded in
+  `docs/plans/8-highlight-consumer-owned-mapped-types-and-their-wire-shapes.md`.
 
 The remaining files are **hand-written for this repository**:
 
@@ -54,6 +64,15 @@ The remaining files are **hand-written for this repository**:
   (`"…\n…"`), and signed (`-1`) / fractional (`1.5`) numeric literals. It backs the
   reconciliation recorded in
   `docs/plans/4-reconcile-highlighters-with-keiro-dsl-lexical-surface-20-new-reserved-words-string-escapes-signed-decimal-numbers.md`.
+- `mapped-type-spellings.keiro` — authored here (2026-07-29) to cover the two mapped-type
+  spellings that no *single* upstream fixture exercises together: the
+  `unknown-fields=ignore` policy (only `keiro-dsl/test/fixtures/structural-conformance.keiro`
+  has it, and that file drops `Natural`, `Json`, and `Map`) and the `UTCTime` alias for
+  `Time`, which appears in no upstream fixture at all even though the parser accepts it
+  (`pMappedTypeExpr`: `TTime <$ (keyword "Time" <|> keyword "UTCTime")`). Its leading comment
+  deliberately contains mapped-type keywords so both suites can confirm a comment still wins
+  over the words inside it. It backs the same reconciliation as
+  `consumer-mapped-types.keiro`.
 
 ## Rules for consumers
 

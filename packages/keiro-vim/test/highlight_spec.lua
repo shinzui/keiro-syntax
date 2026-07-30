@@ -99,38 +99,108 @@ expect('deprecated', 'keiroModifier')
 expect('replay-only', 'keiroModifier')
 expect('goto', 'keiroStatement')
 
--- Reserved-word coverage guard (keiro-dsl 75286d7).
+-- Consumer-owned mapped types (keiro-dsl 430c3d2). `mapped structural record|enum|union` and
+-- `mapped opaque` declare a Haskell type owned by another package plus its wire encoding.
+--
+-- expect() reads the group at the *first character* of the literal and finds the *first* line
+-- containing it, so several of these anchor on a phrase rather than a bare word: `record`
+-- alone would first be found inside `mapped structural record`, which is harmless, but `type`
+-- alone would be found inside `canonical-type` on an earlier line and `as` inside `canonical`.
+open('corpus/consumer-mapped-types.keiro')
+expect('mapped structural record', 'keiroKeyword')
+expect('structural record', 'keiroModifier')
+expect('record ArtifactInfo', 'keiroModifier')
+expect('union ArtifactLocation', 'keiroModifier')
+expect('opaque VendorGeometry', 'keiroModifier')
+-- `keiroTypeName` is deliberately not asserted: the Vim rule for the optional
+-- Declaration-site-type-name refinement has never fired for *any* introducer, because Vim's
+-- 'syntax keyword' outranks the '\zs' match and consumes the introducer before the match is
+-- tried. Section 6 of the spec marks that class optional, so Vim stays compliant. See this
+-- range's plan for the evidence and the fix a future plan would apply.
+expect('haskell package', 'keiroStatement')
+expect('package=artifact-domain', 'keiroStatement')
+expect('type=ArtifactInfo', 'keiroStatement')
+expect('constructor=ArtifactInfo', 'keiroStatement')
+expect('as "key"', 'keiroStatement')
+expect('required', 'keiroModifier')
+expect('optional on-missing=Guide', 'keiroModifier')
+-- The dashed clause labels: each assertion reads the group at the leading segment, so a
+-- passing check here plus the character-by-character probe in the plan's Validation section
+-- together prove the whole spelling is claimed by one rule.
+expect('binding-version', 'keiroStatement')
+expect('canonical-type', 'keiroStatement')
+expect('unknown-fields=reject', 'keiroStatement')
+expect('tagged-object', 'keiroStatement')
+expect('on-missing=Guide', 'keiroStatement')
+expect('reject {', 'keiroStatement')
+expect('Natural', 'keiroType')
+expect('Json', 'keiroType')
+expect('Optional Text', 'keiroType')
+expect('List Text', 'keiroType')
+expect('Map Text', 'keiroType')
+expect('null', 'keiroConstant')
+-- A mapped declaration must not disturb the aggregate beneath it.
+expect('aggregate Catalog', 'keiroKeyword')
+expect('guard', 'keiroStatement')
+expect(':=', 'keiroOperator')
+
+-- The two spellings no single upstream fixture pairs: `unknown-fields=ignore` and the
+-- `UTCTime` alias for `Time`.
+open('corpus/mapped-type-spellings.keiro')
+expect('unknown-fields=ignore', 'keiroStatement')
+expect('ignore {', 'keiroStatement')
+expect('UTCTime', 'keiroType')
+-- The leading comment deliberately contains mapped-type keywords; the comment must win.
+expect('# keiro-dsl mapped-type', 'keiroComment')
+
+-- Spec word-list coverage guards.
 --
 -- `retiring` joined the parser's `reservedWords` in keiro-dsl 75286d7 without changing how the
 -- word is spelled or where it may appear, so that range needed no syntax-file edit. The
--- standing risk it exposes is that the *next* word to join the list would simply not be in
--- keiro.vim, and no hand-named assertion above would notice. This block closes that gap: it
--- reads the reserved-keyword list out of Section 3 of spec/keiro-dsl-language-model.md — which
--- is a verbatim copy of `reservedWords` — and asserts every word gets some keyword group.
+-- standing risk it exposed is that the *next* word to join a spec word list would simply not
+-- be in keiro.vim, and no hand-named assertion above would notice. keiro-dsl 430c3d2 then
+-- added 33 words at once, 26 of them to Section 4 — which had no guard at all. This block
+-- closes both gaps: it reads the reserved-keyword list out of Section 3 of
+-- spec/keiro-dsl-language-model.md (a verbatim copy of `reservedWords`) and the two curated
+-- contextual lists out of Section 4, and asserts every word gets some keyword group.
 --
--- The check is deliberately loose about *which* group. Section 6 of the spec splits the
--- reserved words across four classes, and pinning each word to one would freeze that split
--- instead of catching the failure that matters: a reserved word rendering as plain text.
+-- The check is deliberately loose about *which* group. Section 6 of the spec splits these
+-- words across four classes, and pinning each word to one would freeze that split instead of
+-- catching the failure that matters: a keyword rendering as plain text.
 
--- Read the words out of the first ```text fenced block under the "## Section 3" heading.
-local function reserved_words_from_spec()
+-- Collect the words out of the first `count` ```text fenced blocks under a "## Section N"
+-- heading, stopping at the next "## Section" heading. `count` matters because Section 4 has a
+-- *third* fenced block — the `replay-only` worked example, which is .keiro code rather than a
+-- word list — so taking only the leading blocks skips it structurally.
+local function word_blocks_from_spec(heading, count)
   local lines = vim.fn.readfile(repo_root .. '/spec/keiro-dsl-language-model.md')
-  local start, open_fence, close_fence
+  local start
   for i, line in ipairs(lines) do
-    if not start and line:sub(1, 12) == '## Section 3' then start = i
-    elseif start and not open_fence and line == '```text' then open_fence = i
-    elseif open_fence and line == '```' then close_fence = i break end
+    if line:sub(1, #heading) == heading then start = i break end
   end
-  assert(start, 'spec has no "## Section 3" heading')
-  assert(open_fence, 'Section 3 has no ```text fenced block')
-  assert(close_fence, 'Section 3 fenced block is unterminated')
-  local words = {}
-  for i = open_fence + 1, close_fence - 1 do
-    for word in lines[i]:gmatch('%S+') do
-      words[#words + 1] = word
+  assert(start, 'spec has no "' .. heading .. '" heading')
+  local blocks = {}
+  local i = start + 1
+  while i <= #lines and #blocks < count do
+    if lines[i]:sub(1, 10) == '## Section' then break end
+    if lines[i] == '```text' then
+      local close_fence
+      for j = i + 1, #lines do
+        if lines[j] == '```' then close_fence = j break end
+      end
+      assert(close_fence, heading .. ' fenced block is unterminated')
+      local words = {}
+      for k = i + 1, close_fence - 1 do
+        for word in lines[k]:gmatch('%S+') do words[#words + 1] = word end
+      end
+      blocks[#blocks + 1] = words
+      i = close_fence
     end
+    i = i + 1
   end
-  return words
+  assert(#blocks == count,
+    string.format('%s has %d ```text blocks, expected %d', heading, #blocks, count))
+  return blocks
 end
 
 local KEYWORDISH_GROUPS = {
@@ -138,43 +208,72 @@ local KEYWORDISH_GROUPS = {
   keiroStatement = true,  -- Control / section keyword
   keiroModifier = true,   -- Modifier
   keiroBoolean = true,    -- Language constant (true / false)
-  keiroConstant = true,   -- Language constant (HOLE, ...)
+  keiroConstant = true,   -- Language constant (HOLE, null, ...)
 }
 
-local reserved = reserved_words_from_spec()
+-- Probe a list of words, one per line, in a scratch buffer. 'buftype=nofile' keeps it off
+-- disk; without it the unsaved changes make the closing 'quitall' fail with E37. Fill the
+-- buffer *before* setting the filetype: setting 'filetype' fires the FileType autocommand that
+-- sources syntax/keiro.vim, and doing that last means the rules apply to contents already
+-- present.
+-- Probing column 1 alone is not enough, and this is the failure mode it misses. Vim's
+-- 'syntax keyword' outranks a 'syntax match' beginning at the same column, so a bare keyword
+-- that is a *prefix* of a dashed keyword claims only the head: before the fixes in this
+-- range, `on-ok` read as a colored `on` plus a grey `-ok`, and column 1 was `keiroStatement`
+-- either way. So check **every** character of the word and require one uniform group.
+local function expect_all_keywordish(label, words)
+  vim.cmd('enew!')
+  vim.bo.buftype = 'nofile'
+  vim.bo.bufhidden = 'wipe'
+  vim.bo.swapfile = false
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, words)
+  vim.bo.filetype = 'keiro'
+  vim.cmd('syntax sync fromstart')
 
-checks = checks + 1
-if #reserved ~= 71 then
-  failures = failures + 1
-  print(string.format('FAIL reserved-word count: want 71, got %d', #reserved))
-else
-  print(string.format('ok   reserved-word count -> %d', #reserved))
+  for i, word in ipairs(words) do
+    checks = checks + 1
+    local got = group_at(i, 1)
+    local split_at
+    for c = 2, #word do
+      if group_at(i, c) ~= got then split_at = c break end
+    end
+    if not KEYWORDISH_GROUPS[got] then
+      failures = failures + 1
+      print(string.format('FAIL %s %q: want a keyword group, got %s', label, word, got))
+    elseif split_at then
+      failures = failures + 1
+      print(string.format('FAIL %s %q: %s stops before %q (column %d) — a bare keyword is '
+        .. 'shadowing the dashed spelling; see the -\\@! matches in syntax/keiro.vim',
+        label, word, got, word:sub(split_at), split_at))
+    else
+      print(string.format('ok   %s %q -> %s', label, word, got))
+    end
+  end
+
+  vim.bo.modified = false
 end
 
--- A scratch buffer with one word per line. 'buftype=nofile' keeps it off disk; without it the
--- unsaved changes below make the closing 'quitall' fail with E37. Fill the buffer *before*
--- setting the filetype: setting 'filetype' fires the FileType autocommand that sources
--- syntax/keiro.vim, and doing that last means the rules apply to contents already present.
-vim.cmd('enew!')
-vim.bo.buftype = 'nofile'
-vim.bo.bufhidden = 'wipe'
-vim.bo.swapfile = false
-vim.api.nvim_buf_set_lines(0, 0, -1, false, reserved)
-vim.bo.filetype = 'keiro'
-vim.cmd('syntax sync fromstart')
-
-for i, word in ipairs(reserved) do
+local function expect_count(label, got, want)
   checks = checks + 1
-  local got = group_at(i, 1)
-  if KEYWORDISH_GROUPS[got] then
-    print(string.format('ok   %q -> %s', word, got))
-  else
+  if got ~= want then
     failures = failures + 1
-    print(string.format('FAIL %q: want a keyword group, got %s', word, got))
+    print(string.format('FAIL %s count: want %d, got %d', label, want, got))
+  else
+    print(string.format('ok   %s count -> %d', label, got))
   end
 end
 
-vim.bo.modified = false
+local reserved = word_blocks_from_spec('## Section 3', 1)[1]
+local contextual = word_blocks_from_spec('## Section 4', 2)
+local bare, dashed = contextual[1], contextual[2]
+
+expect_count('reserved-word', #reserved, 72)
+expect_count('bare contextual-keyword', #bare, 96)
+expect_count('dashed contextual-keyword', #dashed, 31)
+
+expect_all_keywordish('reserved', reserved)
+expect_all_keywordish('contextual', bare)
+expect_all_keywordish('contextual-dashed', dashed)
 
 print(string.format('\n%d checks, %d failures', checks, failures))
 if failures > 0 then

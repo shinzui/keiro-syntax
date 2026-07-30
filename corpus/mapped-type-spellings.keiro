@@ -1,0 +1,36 @@
+# keiro-dsl mapped-type spellings that no single upstream fixture exercises together: the
+# lenient policy for unknown wire fields, and the alias spelling of the timestamp type.
+# Every keyword in this comment — mapped, record, wire, optional, Natural — must stay
+# Comment, not keyword. The two spellings under test are deliberately NOT written here: both
+# suites locate a token by its first occurrence in the file, so naming them in a comment
+# would make the assertions read the comment instead of the declaration.
+context mapped-spellings
+
+mapped structural record ShipmentTouch {
+  haskell package=shipment-domain module=Example.Shipment.Domain type=ShipmentTouch
+  binding = "Example.Shipment.KeiroBindings.shipmentTouchBinding"
+  binding-version = "1"
+  canonical-type = "example.shipment.ShipmentTouch.v1"
+  fixtures = "Example.Shipment.KeiroBindings.shipmentTouchCases"
+  initial = "Example.Shipment.KeiroBindings.emptyShipmentTouch"
+  wire object constructor=ShipmentTouch unknown-fields=ignore {
+    touchedAt as "touched_at" : UTCTime       required
+    note      as "note"       : Optional Text optional on-missing=null
+    hopCount  as "hop_count"  : Natural       optional on-missing=0
+  }
+}
+
+aggregate Shipment
+  regs
+    lastTouch ShipmentTouch = initial
+  states Idle Touched!
+
+  command RecordTouch { touch:ShipmentTouch }
+  event TouchRecorded = fields(RecordTouch)
+
+  Idle -- RecordTouch -->
+    write lastTouch := touch
+    emit  TouchRecorded
+    goto  Touched
+
+  wire kind=ctorName fields=camelCase schemaVersion=1

@@ -8,6 +8,7 @@
     { "include": "#dashed-keywords" },
     { "include": "#dashed-modifiers" },
     { "include": "#decl-with-name" },
+    { "include": "#mapped-decl-with-name" },
     { "include": "#introducers" },
     { "include": "#modifiers" },
     { "include": "#constants" },
@@ -30,7 +31,7 @@
       ]
     },
     "dashed-keywords": {
-      "match": "(?<![A-Za-z0-9_-])(?:status-map|dispatch-id|fired-event-id|dispatch-each|read-model|on-appended|on-duplicate|on-failed|on-ok|on-reject|on-error|on-ambiguous|on-terminal|not-mine|unknown-status|max-attempts|dead-letter|kafka-key|kafka-cursor|cross-check|state-codec|shape-hash|full-envelope|dedupe-only|entire-log|fifo-throughput|fifo-roundrobin)(?![A-Za-z0-9_-])",
+      "match": "(?<![A-Za-z0-9_-])(?:status-map|dispatch-id|fired-event-id|dispatch-each|read-model|on-appended|on-duplicate|on-failed|on-ok|on-reject|on-error|on-ambiguous|on-blocked|on-terminal|on-missing|not-mine|unknown-status|unknown-fields|max-attempts|dead-letter|kafka-key|kafka-cursor|cross-check|state-codec|shape-hash|full-envelope|dedupe-only|entire-log|fifo-throughput|fifo-roundrobin|binding-version|canonical-type|tagged-object)(?![A-Za-z0-9_-])",
       "name": "keyword.control.keiro"
     },
     "dashed-modifiers": {
@@ -44,12 +45,20 @@
         "2": { "name": "entity.name.type.keiro" }
       }
     },
+    "mapped-decl-with-name": {
+      "comment": "The shape word of a `mapped` declaration plus the type name it names. Listed before #modifiers so it wins the same-position tie and can claim both tokens; its first capture keeps the Modifier scope those three words carry on their own.",
+      "match": "(?<![A-Za-z0-9_-])(record|union|opaque)(?![A-Za-z0-9_-])\\s+([A-Za-z_][A-Za-z0-9_]*)",
+      "captures": {
+        "1": { "name": "storage.modifier.keiro" },
+        "2": { "name": "entity.name.type.keiro" }
+      }
+    },
     "introducers": {
-      "match": "(?<![A-Za-z0-9_])(?:context|id|enum|rule|aggregate|process|router|contract|intake|emit|publisher|workqueue|dispatch|readmodel|workflow|operation)(?![A-Za-z0-9_])",
+      "match": "(?<![A-Za-z0-9_])(?:context|id|enum|rule|mapped|aggregate|process|router|contract|intake|emit|publisher|workqueue|dispatch|readmodel|workflow|operation)(?![A-Za-z0-9_])",
       "name": "keyword.declaration.keiro"
     },
     "modifiers": {
-      "match": "(?<![A-Za-z0-9_])(?:deprecated|retiring|upcast|from|consistency|required|stable|strategy|via|policy|prefix|kind)(?![A-Za-z0-9_])",
+      "match": "(?<![A-Za-z0-9_])(?:deprecated|retiring|upcast|from|consistency|required|optional|stable|strategy|via|policy|prefix|kind|structural|opaque|record|union)(?![A-Za-z0-9_])",
       "name": "storage.modifier.keiro"
     },
     "constants": {
@@ -59,17 +68,18 @@
           "name": "constant.language.boolean.keiro"
         },
         {
-          "match": "(?<![A-Za-z0-9_])(?:HOLE|placeholder|skip|hole)(?![A-Za-z0-9_])",
+          "match": "(?<![A-Za-z0-9_])(?:HOLE|placeholder|skip|hole|null)(?![A-Za-z0-9_])",
           "name": "constant.language.keiro"
         }
       ]
     },
     "types": {
-      "match": "(?<![A-Za-z0-9_])(?:Bool|Int|Text|Time|Id|Maybe|typeid|text|int)(?![A-Za-z0-9_])",
+      "comment": "`Map` (capitalized) is a primitive type; the reserved lowercase `map` is a control keyword. Oniguruma is case-sensitive, and #types is listed before #control-keywords.",
+      "match": "(?<![A-Za-z0-9_])(?:Bool|Int|Text|Time|UTCTime|Id|Maybe|Natural|Json|Optional|List|Map|typeid|text|int)(?![A-Za-z0-9_])",
       "name": "support.type.keiro"
     },
     "control-keywords": {
-      "match": "(?<![A-Za-z0-9_])(?:regs|states|command|event|wire|projection|snapshot|category|guard|write|emit|goto|fields|module|layout|prefixed|collocated|resolve|persist|patch|continueAsNew|columns|feed|scope|shape|accept|bind|dedupe|decode|disposition|map|queue|payload|retry|fanout|dedup|enqueue|seenIn|body|step|await|sleep|child|topic|ex|name|input|output|in|out|correlate|saga|stream|target|projections|on|advance|schedule|timer|fireAt|fire|source|key|value|run|signal|query|project|result|ordering|backoff|outboxId|messageId|idempotencyKey|discriminator|schemaVersion|derive|of|after|logical|physical|dlq|table|maxRetries|maxAttempts|delay|readModel|field|to|envelope|every|partial|header|schema|version|inline|row|halt|poison|rejected|group|provision|outcome|fixture|interval|retention|standard|unlogged|partitioned|unordered|off|strict|lenient)(?![A-Za-z0-9_])",
+      "match": "(?<![A-Za-z0-9_])(?:regs|states|command|event|wire|projection|snapshot|category|guard|write|emit|goto|fields|module|layout|prefixed|collocated|resolve|persist|patch|continueAsNew|columns|feed|scope|shape|accept|bind|dedupe|decode|disposition|map|queue|payload|retry|fanout|dedup|enqueue|seenIn|body|step|await|sleep|child|topic|ex|name|input|output|in|out|correlate|saga|stream|target|projections|on|advance|schedule|timer|fireAt|fire|source|key|value|run|signal|query|project|result|ordering|backoff|outboxId|messageId|idempotencyKey|discriminator|schemaVersion|derive|of|after|logical|physical|dlq|table|maxRetries|maxAttempts|delay|readModel|field|to|envelope|every|partial|header|schema|version|inline|row|halt|poison|rejected|group|provision|outcome|fixture|interval|retention|standard|unlogged|partitioned|unordered|off|strict|lenient|haskell|package|type|binding|codec|fixtures|initial|object|constructor|string|tag|contents|as|reject|ignore)(?![A-Za-z0-9_])",
       "name": "keyword.control.keiro"
     },
     "numbers": {
