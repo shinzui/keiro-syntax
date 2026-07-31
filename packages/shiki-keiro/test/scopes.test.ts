@@ -193,6 +193,10 @@ const mappedSpellings = readFileSync(
 )
 const scalarTypes = readFileSync(resolve(repoRoot, 'corpus/aggregate-scalar-types.keiro'), 'utf8')
 const preamble = readFileSync(resolve(repoRoot, 'corpus/language-preamble.keiro'), 'utf8')
+const nominalBindings = readFileSync(
+  resolve(repoRoot, 'corpus/consumer-nominal-bindings.keiro'),
+  'utf8',
+)
 
 test('comments get the comment scope', () => {
   expectScope(sampler, '# keiro-dsl lexical sampler — comments, strings, numbers, durations, versions', 'comment.line.number-sign.keiro')
@@ -484,6 +488,82 @@ test('a comment banner above the preamble stays a comment', () => {
   )
 })
 
+// --- Consumer-owned nominal bindings (keiro-dsl fcd6748) ---------------------
+//
+// The third `mapped` family. `mapped nominal X : R { … }` declares a consumer-owned Haskell
+// type whose identity matters even though its wire representation is a plain scalar, and a
+// trailing `using { … }` clause attaches the same block of facts to an `id` or `enum`
+// declaration the file already had. Only two words are new: `nominal` and `using`.
+
+test('the mapped nominal family word gets storage.modifier', () => {
+  // Anchored on the declaration line: `nominal` also appears as the leading segment of this
+  // file's context wire word (`context nominal-scalars`), where a bare-word rule ends at the
+  // `-` — pre-existing behaviour for every dashed wire word, not something this range changed.
+  expectWholeToken(
+    nominalBindings,
+    'nominal',
+    'storage.modifier.keiro',
+    'mapped nominal AccountNumber',
+  )
+})
+
+test('the name a mapped nominal declaration introduces gets entity.name.type', () => {
+  // Proves #mapped-decl-with-name learned the third family word: `nominal X` now claims the
+  // name exactly as `record X`, `union X`, and `opaque X` already did.
+  expectScope(nominalBindings, 'AccountNumber', 'entity.name.type.keiro')
+  expectScope(nominalBindings, 'RiskScore', 'entity.name.type.keiro')
+})
+
+test('the nominal representation slot gets support.type', () => {
+  // Upstream parses this slot as a bare `ident` and narrows it later in NominalType.hs to
+  // Text / Int / Natural / Bool / Time / UTCTime — all already in #types, so no rule was
+  // needed. These assertions exist to keep it that way.
+  expectScope(nominalBindings, 'Text', 'support.type.keiro')
+  expectScope(nominalBindings, 'Int', 'support.type.keiro')
+  expectScope(nominalBindings, 'Natural', 'support.type.keiro')
+  expectScope(nominalBindings, 'Bool', 'support.type.keiro')
+  expectScope(nominalBindings, 'Time', 'support.type.keiro')
+})
+
+test('the using binding clause gets keyword.control at both call sites', () => {
+  // `pUsingNominalBinding` is invoked from `pIdDecl` and from `pEnumDecl`; the enum case is
+  // the language's first declaration body that continues *after* a closing brace, so assert
+  // it separately rather than trusting the id case to cover both.
+  expectWholeToken(nominalBindings, 'using', 'keyword.control.keiro', 'id OrderId prefix=ord')
+  expectWholeToken(nominalBindings, 'using', 'keyword.control.keiro', 'enum OrderStatus')
+})
+
+test('the binding clause labels inside a using block get keyword.control', () => {
+  // The block itself is not new: `pNominalClause` is a choice over rules the mapped-type
+  // declaration already had, so every label here has been matched since keiro-dsl 430c3d2.
+  // The first occurrence of each is inside this file's `id … using { … }` block.
+  expectScope(nominalBindings, 'haskell', 'keyword.control.keiro')
+  expectScope(nominalBindings, 'package', 'keyword.control.keiro')
+  expectScope(nominalBindings, 'type', 'keyword.control.keiro')
+  expectScope(nominalBindings, 'binding', 'keyword.control.keiro')
+  expectScope(nominalBindings, 'binding-version', 'keyword.control.keiro')
+  expectScope(nominalBindings, 'canonical-type', 'keyword.control.keiro')
+  expectScope(nominalBindings, 'fixtures', 'keyword.control.keiro')
+  expectScope(nominalBindings, 'initial', 'keyword.control.keiro')
+})
+
+test('a nominal source still tokenizes its version 2 preamble', () => {
+  // Nominal syntax requires `language keiro-dsl 2`. The version is an ordinary Number
+  // whatever its value — there is no per-version token class.
+  expectScope(nominalBindings, 'language', 'keyword.declaration.keiro')
+  expectWholeToken(nominalBindings, 'keiro-dsl', 'keyword.control.keiro', 'language keiro-dsl 2')
+  expectScope(nominalBindings, '2', 'constant.numeric.keiro')
+})
+
+test('a nominal binding does not disturb the aggregate below it', () => {
+  expectScope(nominalBindings, 'aggregate', 'keyword.declaration.keiro')
+  expectScope(nominalBindings, 'regs', 'keyword.control.keiro')
+  expectScope(nominalBindings, 'states', 'keyword.control.keiro')
+  expectScope(nominalBindings, 'guard', 'keyword.control.keiro')
+  expectScope(nominalBindings, 'goto', 'keyword.control.keiro')
+  expectScope(nominalBindings, ':=', 'keyword.operator.keiro')
+})
+
 // --- Spec word-list coverage guards -----------------------------------------
 //
 // `retiring` joined the parser's `reservedWords` in keiro-dsl 75286d7 without changing how
@@ -503,11 +583,13 @@ test('the spec Section 3 list holds the parser 72 reserved words', () => {
   expect(reservedWordsFromSpec().length).toBe(72)
 })
 
-test('the spec Section 4 lists 97 bare and 32 dashed contextual keywords', () => {
+test('the spec Section 4 lists 99 bare and 32 dashed contextual keywords', () => {
   // 96 -> 97 and 31 -> 32 at keiro-dsl 4523b52, which added the version preamble's `language`
-  // (bare) and `keiro-dsl` (dashed). Section 3 is unchanged: neither word is reserved.
+  // (bare) and `keiro-dsl` (dashed). 97 -> 99 at keiro-dsl fcd6748, which added the nominal
+  // binding words `nominal` and `using`, both bare. Section 3 is unchanged throughout: none
+  // of those four words is reserved.
   const { bare, dashed } = contextualWordsFromSpec()
-  expect(bare.length).toBe(97)
+  expect(bare.length).toBe(99)
   expect(dashed.length).toBe(32)
 })
 

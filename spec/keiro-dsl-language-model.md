@@ -47,6 +47,16 @@ that are then empty.) The clause is exactly three tokens: the word `language`, t
 Section 4, which also explains why a highlighter must **not** try to model the placement
 rule.
 
+Since keiro-dsl commit `fcd6748` the released-contract registry holds **two** versions, `1`
+and `2`; version 2 is the contract under which the **nominal binding** syntax described in
+Section 4 is legal, and a source using that syntax must open `language keiro-dsl 2`. A
+highlighter models none of that: the version is an ordinary Number (Section 2) whatever its
+value, and which words a given version admits is a parser concern. (Parser: `parseSource`
+now calls `ensureBodyFeatures` before choosing a body grammar; it scans the raw significant
+lines for `mapped nominal …` or for any line containing the word `using` and rejects them
+with a `LanguageFeatureRequiresVersion` diagnostic below version 2. An editor must still
+tokenize such a file while its author is fixing the version line.)
+
 **Authoritative source.** Every fact in this document is confirmed against the keiro-dsl
 parser, a Haskell file using the `megaparsec` library:
 `/Users/shinzui/Keikaku/bokuno/keiro/keiro-dsl/src/Keiro/Dsl/Parser.hs`. The reserved-keyword
@@ -258,15 +268,17 @@ row          halt        poison      rejected    group       provision
 outcome      fixture     interval    retention   standard    unlogged
 partitioned  unordered   off         strict      lenient     language
 as           binding     codec       constructor contents    fixtures
-haskell      ignore      initial     null        object      opaque
-optional     package     record      reject      string      structural
-tag          type        union
+haskell      ignore      initial     nominal     null        object
+opaque       optional    package     record      reject      string
+structural   tag         type        union       using
 ```
 
-The last three-and-a-bit rows — `as` through `union` — are the **mapped type declaration**
+The last three-and-a-bit rows — `as` through `using` — are the **mapped type declaration**
 vocabulary, described in its own subsection below. They are listed here in alphabetical order
 rather than in the order they appear in a declaration, because this grid is a flat membership
-list and nothing else in it is ordered either.
+list and nothing else in it is ordered either. `nominal` and `using` are the two most recent
+arrivals (keiro-dsl commit `fcd6748`); they belong to the **nominal binding** forms described
+at the end of that subsection.
 
 ### Dashed contextual keywords (match-before-bare-words)
 
@@ -383,12 +395,16 @@ highlighting one.)
 
 A `.keiro` file can declare a **consumer-owned mapped type**: a Haskell data type that lives
 in a *different* package, together with an explicit description of how it is encoded on the
-wire. The declaration begins with the reserved word `mapped` (Section 3) and supplies 26 of
-this section's curated words — 21 bare and 5 dashed. None of them is reserved, because
+wire. The declaration begins with the reserved word `mapped` (Section 3) and supplies 28 of
+this section's curated words — 23 bare and 5 dashed. None of them is reserved, because
 everything inside the declaration's `{ … }` braces is unambiguous without reservation, so a
 reader of Section 3 alone would never learn that these words exist. Hence this subsection.
 
-There are two families. `mapped structural …` describes the encoding field by field and comes
+There are three families. Two of them describe a *structure*, and are covered first;
+`mapped nominal …`, added by keiro-dsl commit `fcd6748`, describes an *identity* and is
+covered in "Nominal bindings" at the end of this subsection.
+
+`mapped structural …` describes the encoding field by field and comes
 in three **shapes** — `record` (a product type, encoded as a JSON object), `enum` (nullary
 constructors, encoded as a JSON string), and `union` (a sum type with payloads, encoded as a
 tagged JSON object). `mapped opaque …` does not describe the encoding at all; it names an
@@ -465,9 +481,10 @@ Four facts a highlighter implementer needs:
   5 has never claimed brackets or braces, and both packages leave every `{ … }` field list and
   `project [ … ]` list uncolored today. Coloring them for these two literals alone would
   restyle every existing `.keiro` file, so they are deliberately left alone.
-- **`structural`, `opaque`, `record`, `union`, and the field-level `optional` are Modifiers**
-  in Section 6, not control keywords: they qualify the declaration `mapped` introduces rather
-  than introducing one themselves. `optional` is `required`'s partner in one parser `choice`,
+- **`structural`, `opaque`, `nominal`, `record`, `union`, and the field-level `optional` are
+  Modifiers** in Section 6, not control keywords: they qualify the declaration `mapped`
+  introduces rather than introducing one themselves. (`nominal` is the third family word; see
+  "Nominal bindings" below.) `optional` is `required`'s partner in one parser `choice`,
   and `required` has been a Modifier since plan 4. The visible consequence of classifying by
   role rather than by position is that `mapped structural enum X` shows `enum` in the
   *introducer* color while `mapped structural record X` shows `record` in the *modifier* color
@@ -480,6 +497,90 @@ Four facts a highlighter implementer needs:
   That is Section 1's lexical-highlighting rule working as designed, not a bug — `key`,
   `value`, `field`, `table`, `row`, and `group` have all been unconditional keywords since
   plan 4 and can all appear as ordinary names too.
+
+#### Nominal bindings
+
+Since keiro-dsl commit `fcd6748` a `.keiro` file can also say that a name is a **consumer-owned
+nominal type** — a Haskell type whose *identity* matters even though its wire representation is
+an ordinary scalar. `AccountNumber` and `OrderId` may both be `Text` on the wire while being
+two distinct types in the consumer's Haskell code. This is the third `mapped` family, and it
+takes two spellings.
+
+The first is a declaration of its own, `mapped nominal <Name> : <Representation> { … }`:
+
+```text
+mapped nominal AccountNumber : Text {
+  haskell package=nominal-conformance module=NominalConformance.Domain type=AccountNumber
+  binding = "NominalConformance.Bindings.accountNumberBinding"
+  binding-version = "1"
+  canonical-type = "nominal.AccountNumber.v1"
+  fixtures = "NominalConformance.Bindings.accountNumberFixtures"
+  initial = "NominalConformance.Bindings.initialAccountNumber"
+}
+```
+
+The second attaches the identical block of facts to an `id` or `enum` declaration the file
+already had, with a trailing `using` clause:
+
+```text
+id OrderId prefix=ord using {
+  haskell package=nominal-conformance module=NominalConformance.Domain type=OrderId
+  binding = "NominalConformance.Bindings.orderIdBinding"
+  binding-version = "1"
+  canonical-type = "nominal.OrderId.v1"
+  fixtures = "NominalConformance.Bindings.orderIdFixtures"
+  initial = "NominalConformance.Bindings.initialOrderId"
+}
+
+enum OrderStatus { Draft=draft Submitted=submitted } using {
+  haskell package=nominal-conformance module=NominalConformance.Domain type=OrderStatus
+  binding = "NominalConformance.Bindings.orderStatusBinding"
+  binding-version = "1"
+  canonical-type = "nominal.OrderStatus.v1"
+  fixtures = "NominalConformance.Bindings.orderStatusFixtures"
+  initial = "NominalConformance.Bindings.initialOrderStatus"
+}
+```
+
+Four facts a highlighter implementer needs:
+
+- **Only two words are new.** The braced block is `pNominalBindingBlock`, whose clause parser
+  `pNominalClause` is a `choice` over rules the two older families already used —
+  `pHaskellSource` (the `haskell package=… module=… type=…` line) and `pQuotedFact` for
+  `binding`, `binding-version`, `canonical-type`, `fixtures`, and `initial`. Every one of
+  those words is already in this section. So the whole of nominal binding costs exactly
+  `nominal` and `using`.
+- **`nominal` is a Modifier and `using` is a Control keyword** in Section 6. `nominal` joins
+  `structural` and `opaque` because it selects a `mapped` declaration's family:
+  `pMappedTopItem` reads `keyword "mapped"` and then chooses between the three. `using`
+  introduces a *clause* of a declaration some other word already began —
+  `pUsingNominalBinding` is invoked from inside `pIdDecl` and `pEnumDecl` — which is what
+  `wire` does inside a `mapped structural` block, and `wire` is a control keyword.
+- **The name after `nominal` is a declaration-site type name**, the same optional refinement
+  Section 6 already gives `record X`, `union X`, and `opaque X`. The type it declares is used
+  exactly like theirs — an aggregate register may be declared
+  `accountNumber AccountNumber = initial`.
+- **The representation after the `:` is parsed as a bare identifier**, not with the
+  ten-spelling `pMappedTypeExpr` grammar, and is narrowed later by `keiro-dsl check`. The
+  accepted set (`Keiro/Dsl/NominalType.hs`, `scalarRepresentation`) is `Text`, `Int`,
+  `Natural`, `Bool`, `Time`, and `UTCTime` as an alias for `Time` — all six already
+  **Primitive types** in Section 6, so the slot needs no new rule. Because the *parser*
+  accepts any identifier there, a file naming an unsupported representation still tokenizes;
+  that is the same principle applied to aggregate type slots in
+  `docs/plans/9-reconcile-the-widened-aggregate-type-slots-and-fractional-register-initials.md`.
+
+One shape here is the first of its kind in the language: an `enum … using { … }` declaration
+continues *after* a closing brace, so a line can read
+`enum OrderStatus { Draft=draft Submitted=submitted } using {`. Braces are uncolored
+punctuation in both packages, so nothing special is needed for it — but a future contributor
+tempted to add brace matching to either grammar should know the case exists.
+
+Nominal binding syntax requires the source to declare `language keiro-dsl 2` (Section 1).
+Neither package models that, for the reason Section 1 gives: highlighting is purely lexical.
+The parser is stricter about `using` than about any other unreserved word — its
+`ensureBodyFeatures` gate rejects a version-1 source whose lines contain `using` *anywhere*,
+not just at the start of a line as with `language` — but that too is a parser rule, and both
+packages color the word unconditionally.
 
 
 ## Section 5 — Operators and punctuation
@@ -521,11 +622,11 @@ to. Both packages must classify the identical literal words into the keyword cla
 | Token class | Members / pattern | TextMate scope | Vim group |
 |---|---|---|---|
 | Declaration introducer | the subset of reserved + contextual words that begin a top-level item or node: `language` (the version preamble, which begins the only clause outside the spec body — see Section 4), `context`, `id`, `enum`, `rule`, `mapped`, `aggregate`, `process`, `router`, `contract`, `intake`, `emit`, `publisher`, `workqueue`, `dispatch`, `readmodel`, `workflow`, `operation` | `keyword.declaration.keiro` | `Keyword` |
-| Control / section keyword | all other reserved keywords (Section 3) **and** all curated contextual keywords (Section 4) *except the words the Modifier and Language-constant rows below claim*, e.g. `regs`, `states`, `command`, `event`, `wire`, `guard`, `write`, `goto`, `snapshot`, `module`, `layout`, `resolve`, `dispatch-each`, `read-model`, `category`, `persist`, `patch`, `continueAsNew`, `columns`, `feed`, `scope`, `shape`, `on`, `advance`, `schedule`, `timer`, `bind`, `accept`, `map`, `step`, `await`, the version preamble's dialect name `keiro-dsl` (dashed — see Section 4), and the mapped-type vocabulary `haskell`, `package`, `type`, `binding`, `binding-version`, `canonical-type`, `codec`, `fixtures`, `initial`, `object`, `constructor`, `string`, `tagged-object`, `tag`, `contents`, `as`, `unknown-fields`, `reject`, `ignore`, `on-missing`, ... | `keyword.control.keiro` | `Statement` |
-| Modifier | `deprecated`, `retiring` (the two mutually exclusive event prefixes — see Section 3), `upcast`, `from`, `consistency`, `required`, `stable`, `strategy`, `via`, `policy`, `prefix`, `kind`, the mapped-type words `structural`, `opaque`, `record`, `union` (which select the family and shape of a `mapped` declaration) and `optional` (`required`'s partner on a wire field — see Section 4), and the dashed `replay-only` (the transition prefix — see Section 4; being dashed it must be matched before bare words) | `storage.modifier.keiro` | `StorageClass` |
+| Control / section keyword | all other reserved keywords (Section 3) **and** all curated contextual keywords (Section 4) *except the words the Modifier and Language-constant rows below claim*, e.g. `regs`, `states`, `command`, `event`, `wire`, `guard`, `write`, `goto`, `snapshot`, `module`, `layout`, `resolve`, `dispatch-each`, `read-model`, `category`, `persist`, `patch`, `continueAsNew`, `columns`, `feed`, `scope`, `shape`, `on`, `advance`, `schedule`, `timer`, `bind`, `accept`, `map`, `step`, `await`, the version preamble's dialect name `keiro-dsl` (dashed — see Section 4), and the mapped-type vocabulary `haskell`, `package`, `type`, `binding`, `binding-version`, `canonical-type`, `codec`, `fixtures`, `initial`, `object`, `constructor`, `string`, `tagged-object`, `tag`, `contents`, `as`, `unknown-fields`, `reject`, `ignore`, `on-missing`, and the nominal-binding clause word `using` (which attaches a consumer binding block to an `id` or `enum` declaration — see Section 4), ... | `keyword.control.keiro` | `Statement` |
+| Modifier | `deprecated`, `retiring` (the two mutually exclusive event prefixes — see Section 3), `upcast`, `from`, `consistency`, `required`, `stable`, `strategy`, `via`, `policy`, `prefix`, `kind`, the mapped-type words `structural`, `opaque`, `nominal`, `record`, `union` (which select the family and shape of a `mapped` declaration) and `optional` (`required`'s partner on a wire field — see Section 4), and the dashed `replay-only` (the transition prefix — see Section 4; being dashed it must be matched before bare words) | `storage.modifier.keiro` | `StorageClass` |
 | Language constant | `true`, `false`, `null` (the `on-missing=null` sentinel — see Section 4), `HOLE`, `placeholder`, `skip`, `hole` | `constant.language.keiro` (give `true` / `false` the more specific `constant.language.boolean.keiro`; `null` takes the general scope) | `Boolean` for `true` / `false`, else `Constant` |
 | Primitive type | `Bool`, `Int`, `Text`, `Time`, `Id`, `Maybe`, `typeid`, `text`, `int`, and the mapped-type spellings `Natural`, `UTCTime` (an alias for `Time`), `Json`, `Optional`, `List`, `Map` (see Section 4 — `Map` capitalized is a type, the reserved lowercase `map` is a control keyword, and both packages match case-sensitively). These are matched **unconditionally, everywhere**, not only inside a `mapped` declaration: since keiro-dsl `da09736` the same type grammar is also an aggregate register's and an aggregate command/event field's type slot (Section 4) | `support.type.keiro` | `Type` |
-| Declaration-site type name | a CamelCase plain identifier appearing immediately after a declaration introducer that names a type (`enum X`, `aggregate X`, `contract X`, `command X`, `event X`, `id X`, `workflow X`, `operation X`, `process X`) or immediately after a `mapped` declaration's shape word (`record X`, `union X`, `opaque X`; `mapped structural enum X` is already covered by the `enum X` case) | `entity.name.type.keiro` | `Type` |
+| Declaration-site type name | a CamelCase plain identifier appearing immediately after a declaration introducer that names a type (`enum X`, `aggregate X`, `contract X`, `command X`, `event X`, `id X`, `workflow X`, `operation X`, `process X`) or immediately after a `mapped` declaration's family or shape word (`record X`, `union X`, `opaque X`, `nominal X`; `mapped structural enum X` is already covered by the `enum X` case) | `entity.name.type.keiro` | `Type` |
 | String | `"..."` (Section 2) | `string.quoted.double.keiro` | `String` |
 | String escape | one of `\"`, `\\`, `\n`, `\t`, `\r` inside a string (Section 2) | `constant.character.escape.keiro` | `SpecialChar` |
 | Number | integer, `[0-9]+\.[0-9]+` fractional, `v[0-9]+`, and `[0-9]+[smh]` duration (Section 2) | `constant.numeric.keiro` | `Number` |

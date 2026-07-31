@@ -47,8 +47,8 @@
       }
     },
     "mapped-decl-with-name": {
-      "comment": "The shape word of a `mapped` declaration plus the type name it names. Listed before #modifiers so it wins the same-position tie and can claim both tokens; its first capture keeps the Modifier scope those three words carry on their own.",
-      "match": "(?<![A-Za-z0-9_-])(record|union|opaque)(?![A-Za-z0-9_-])\\s+([A-Za-z_][A-Za-z0-9_]*)",
+      "comment": "The family or shape word of a `mapped` declaration plus the type name it names. Listed before #modifiers so it wins the same-position tie and can claim both tokens; its first capture keeps the Modifier scope those four words carry on their own. `nominal` is the third family (`mapped nominal X : Text { ... }`), added by keiro-dsl fcd6748.",
+      "match": "(?<![A-Za-z0-9_-])(record|union|opaque|nominal)(?![A-Za-z0-9_-])\\s+([A-Za-z_][A-Za-z0-9_]*)",
       "captures": {
         "1": { "name": "storage.modifier.keiro" },
         "2": { "name": "entity.name.type.keiro" }
@@ -60,7 +60,8 @@
       "name": "keyword.declaration.keiro"
     },
     "modifiers": {
-      "match": "(?<![A-Za-z0-9_])(?:deprecated|retiring|upcast|from|consistency|required|optional|stable|strategy|via|policy|prefix|kind|structural|opaque|record|union)(?![A-Za-z0-9_])",
+      "comment": "`nominal` joins `structural` and `opaque` as a `mapped` family word: `pMappedTopItem` upstream reads `keyword \"mapped\"` and then chooses between the three, so all three qualify the declaration `mapped` introduces rather than introducing one.",
+      "match": "(?<![A-Za-z0-9_])(?:deprecated|retiring|upcast|from|consistency|required|optional|stable|strategy|via|policy|prefix|kind|structural|opaque|nominal|record|union)(?![A-Za-z0-9_])",
       "name": "storage.modifier.keiro"
     },
     "constants": {
@@ -81,7 +82,8 @@
       "name": "support.type.keiro"
     },
     "control-keywords": {
-      "match": "(?<![A-Za-z0-9_])(?:regs|states|command|event|wire|projection|snapshot|category|guard|write|emit|goto|fields|module|layout|prefixed|collocated|resolve|persist|patch|continueAsNew|columns|feed|scope|shape|accept|bind|dedupe|decode|disposition|map|queue|payload|retry|fanout|dedup|enqueue|seenIn|body|step|await|sleep|child|topic|ex|name|input|output|in|out|correlate|saga|stream|target|projections|on|advance|schedule|timer|fireAt|fire|source|key|value|run|signal|query|project|result|ordering|backoff|outboxId|messageId|idempotencyKey|discriminator|schemaVersion|derive|of|after|logical|physical|dlq|table|maxRetries|maxAttempts|delay|readModel|field|to|envelope|every|partial|header|schema|version|inline|row|halt|poison|rejected|group|provision|outcome|fixture|interval|retention|standard|unlogged|partitioned|unordered|off|strict|lenient|haskell|package|type|binding|codec|fixtures|initial|object|constructor|string|tag|contents|as|reject|ignore)(?![A-Za-z0-9_])",
+      "comment": "`using` introduces the consumer binding block on an `id` or `enum` declaration (`id OrderId prefix=ord using { ... }`). It opens a clause of a declaration another word already began — like `wire` inside a `mapped structural` block — so it belongs here rather than with the modifiers.",
+      "match": "(?<![A-Za-z0-9_])(?:using|regs|states|command|event|wire|projection|snapshot|category|guard|write|emit|goto|fields|module|layout|prefixed|collocated|resolve|persist|patch|continueAsNew|columns|feed|scope|shape|accept|bind|dedupe|decode|disposition|map|queue|payload|retry|fanout|dedup|enqueue|seenIn|body|step|await|sleep|child|topic|ex|name|input|output|in|out|correlate|saga|stream|target|projections|on|advance|schedule|timer|fireAt|fire|source|key|value|run|signal|query|project|result|ordering|backoff|outboxId|messageId|idempotencyKey|discriminator|schemaVersion|derive|of|after|logical|physical|dlq|table|maxRetries|maxAttempts|delay|readModel|field|to|envelope|every|partial|header|schema|version|inline|row|halt|poison|rejected|group|provision|outcome|fixture|interval|retention|standard|unlogged|partitioned|unordered|off|strict|lenient|haskell|package|type|binding|codec|fixtures|initial|object|constructor|string|tag|contents|as|reject|ignore)(?![A-Za-z0-9_])",
       "name": "keyword.control.keiro"
     },
     "numbers": {

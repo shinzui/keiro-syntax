@@ -55,10 +55,11 @@ syntax match keiroKeyword /\<dispatch\>-\@!/
 " introduces, so both are modifiers rather than statements.
 syntax keyword keiroModifier deprecated retiring upcast from consistency required stable
 syntax keyword keiroModifier strategy via policy prefix kind
-" `structural` / `opaque` select a mapped declaration's family and `record` / `union` its
-" shape; `optional` is `required`'s partner on a mapped wire field. All qualify the
+" `structural` / `opaque` / `nominal` select a mapped declaration's family and `record` /
+" `union` its shape; `optional` is `required`'s partner on a mapped wire field. All qualify the
 " declaration `mapped` introduces rather than introducing one, so all are modifiers.
-syntax keyword keiroModifier structural opaque record union optional
+" `nominal` is the third family, added by keiro-dsl fcd6748: `mapped nominal X : Text { ... }`.
+syntax keyword keiroModifier structural opaque nominal record union optional
 " The `replay-only` transition prefix is dashed, and '-' is not a keyword character, so it
 " needs 'match' and must cover the whole spelling — otherwise `replay` and `only` are seen
 " as two separate words and the marker is left plain.
@@ -89,6 +90,11 @@ syntax keyword keiroStatement strict lenient
 " prefix of the dashed `binding-version` and so needs the '-\@!' match below.
 syntax keyword keiroStatement haskell package type codec fixtures initial object
 syntax keyword keiroStatement constructor string tag contents as reject ignore
+" `using` introduces the consumer binding block on an `id` or `enum` declaration
+" (`id OrderId prefix=ord using { ... }`). It opens a clause of a declaration another word
+" already began — like `wire` inside a `mapped structural` block — so it is a statement, not a
+" modifier. No '-\@!' guard: it is neither dashed nor the prefix of a dashed word.
+syntax keyword keiroStatement using
 
 " Dashed keywords need 'match' because '-' is not a keyword character.
 syntax match keiroStatement /\<\%(status-map\|dispatch-id\|fired-event-id\)\>/
@@ -135,8 +141,8 @@ syntax match keiroOperator /||/
 syntax match keiroOperator /[<>@!+]/
 
 " --- Declaration-site type name (optional refinement) ---------------------
-" `record` / `union` / `opaque` are a mapped declaration's shape words, listed here so this
-" rule stays in step with Section 6 of spec/keiro-dsl-language-model.md.
+" `record` / `union` / `opaque` / `nominal` are a mapped declaration's shape and family words,
+" listed here so this rule stays in step with Section 6 of spec/keiro-dsl-language-model.md.
 "
 " NOTE: this rule is currently inert, and has been since it was written. Vim tries syntax
 " items only at the current scan column, and 'syntax keyword' outranks 'syntax match' at the
@@ -147,7 +153,7 @@ syntax match keiroOperator /[<>@!+]/
 " is compliant; the Shiki package does implement it. Making it work in Vim means restructuring
 " the introducer declarations to carry 'nextgroup=keiroTypeName skipwhite' with a 'contained'
 " keiroTypeName, which is a change to every introducer line and is left to a future plan.
-syntax match keiroTypeName /\<\%(aggregate\|enum\|contract\|command\|event\|workflow\|operation\|process\|id\|rule\|record\|union\|opaque\)\s\+\zs\u\w*/
+syntax match keiroTypeName /\<\%(aggregate\|enum\|contract\|command\|event\|workflow\|operation\|process\|id\|rule\|record\|union\|opaque\|nominal\)\s\+\zs\u\w*/
 
 " --- Highlight links ------------------------------------------------------
 highlight default link keiroComment      Comment

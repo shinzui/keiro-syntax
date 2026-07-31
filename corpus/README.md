@@ -50,6 +50,19 @@ Copied later, as the parser's lexical surface grew:
   consumes the mapped types, so both suites can also check that a mapped declaration leaves
   the rest of the file tokenizing normally. It backs the reconciliation recorded in
   `docs/plans/8-highlight-consumer-owned-mapped-types-and-their-wire-shapes.md`.
+- `consumer-nominal-bindings.keiro` — copied on 2026-07-31 at keiro-dsl commit
+  `fcd67482d33712b1a07675039049eb00322583bb`, from that commit's
+  `keiro-dsl/test/fixtures/nominal-scalars.keiro`. It is the corpus's sample of the
+  **consumer-owned nominal binding**, the third `mapped` family: five `mapped nominal X : R`
+  declarations covering the representations `Text`, `Int`, `Natural`, `Bool`, and `Time`, plus
+  the two `using { … }` forms that attach the same binding block to an existing `id` and
+  `enum` declaration. It is also the corpus's only sample of a `language keiro-dsl 2`
+  preamble, which the nominal syntax requires, and of a declaration whose body continues after
+  a closing brace (`enum OrderStatus { … } using {`). The `aggregate NominalLedger` beneath the
+  declarations consumes all seven declared types in its `regs`, `command`, `event`, and
+  transition, so both suites can also check that a nominal declaration leaves the rest of the
+  file tokenizing normally. It backs the reconciliation recorded in
+  `docs/plans/11-highlight-consumer-owned-nominal-bindings-mapped-nominal-and-using.md`.
 
 The remaining files are **hand-written for this repository**:
 

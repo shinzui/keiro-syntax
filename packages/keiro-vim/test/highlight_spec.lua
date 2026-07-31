@@ -275,6 +275,60 @@ expect('Natural = 0', 'keiroType')
 expect('placeholder', 'keiroConstant')
 expect(':=', 'keiroOperator')
 
+-- Consumer-owned nominal bindings (keiro-dsl fcd6748). The third `mapped` family:
+-- `mapped nominal X : R { ... }` declares a consumer-owned Haskell type whose identity matters
+-- even though its wire representation is a plain scalar, and a trailing `using { ... }` clause
+-- attaches the same block of facts to an `id` or `enum` declaration the file already had. Only
+-- two words are new: `nominal` and `using`.
+--
+-- The anchors matter here. `nominal` also appears as the leading segment of this file's context
+-- wire word (`context nominal-scalars` on line 2), where a bare keyword rule ends at the `-` —
+-- pre-existing behaviour for every dashed wire word, not something this range changed — so a
+-- bare `expect('nominal', ...)` would read that line instead of a declaration.
+open('corpus/consumer-nominal-bindings.keiro')
+expect('nominal AccountNumber', 'keiroModifier')
+expect('nominal RiskScore', 'keiroModifier')
+-- `keiroTypeName` is deliberately not asserted for `AccountNumber`: the Vim rule for the
+-- optional Declaration-site-type-name refinement has never fired for any introducer, because
+-- Vim's 'syntax keyword' outranks the '\zs' match and consumes the introducer before the match
+-- is tried (see docs/plans/8-highlight-consumer-owned-mapped-types-and-their-wire-shapes.md).
+-- Section 6 of spec/keiro-dsl-language-model.md marks that class optional, so Vim stays
+-- compliant; `nominal` was still added to the rule so it matches Section 6 when a future plan
+-- makes it fire.
+--
+-- `using` at both parser call sites: `pIdDecl` and `pEnumDecl`. The enum case is the
+-- language's first declaration body that continues *after* a closing brace, so assert it
+-- separately rather than trusting the id case to cover both.
+expect('using {', 'keiroStatement')
+expect_uniform('using', 'keiroStatement', 'enum OrderStatus')
+-- The representation slot. Upstream parses it as a bare `ident` and narrows it later in
+-- NominalType.hs to Text / Int / Natural / Bool / Time / UTCTime, all of which keiro.vim
+-- already matches unconditionally, so this needed no syntax-file change.
+expect('Text {', 'keiroType')
+expect('Int {', 'keiroType')
+expect('Natural {', 'keiroType')
+expect('Bool {', 'keiroType')
+expect('Time {', 'keiroType')
+-- The binding block is not new: `pNominalClause` is a choice over rules the mapped-type
+-- declaration already had, so every label below has been matched since keiro-dsl 430c3d2.
+expect('haskell package', 'keiroStatement')
+expect('binding-version', 'keiroStatement')
+expect('canonical-type', 'keiroStatement')
+expect('fixtures = ', 'keiroStatement')
+expect('initial = ', 'keiroStatement')
+-- Nominal syntax requires `language keiro-dsl 2`; the version is an ordinary number whatever
+-- its value, and there is no per-version token class.
+expect('language keiro-dsl 2', 'keiroKeyword')
+expect_uniform('keiro-dsl', 'keiroStatement', 'language keiro-dsl 2')
+expect('2', 'keiroNumber')
+-- The aggregate below the declarations is undisturbed.
+expect('aggregate NominalLedger', 'keiroKeyword')
+expect('regs', 'keiroStatement')
+expect('states', 'keiroStatement')
+expect('guard', 'keiroStatement')
+expect('goto', 'keiroStatement')
+expect(':=', 'keiroOperator')
+
 -- Spec word-list coverage guards.
 --
 -- `retiring` joined the parser's `reservedWords` in keiro-dsl 75286d7 without changing how the
@@ -390,9 +444,11 @@ local contextual = word_blocks_from_spec('## Section 4', 2)
 local bare, dashed = contextual[1], contextual[2]
 
 -- 96 -> 97 and 31 -> 32 at keiro-dsl 4523b52, which added the version preamble's `language`
--- (bare) and `keiro-dsl` (dashed). Section 3 is unchanged: neither word is reserved.
+-- (bare) and `keiro-dsl` (dashed). 97 -> 99 at keiro-dsl fcd6748, which added the nominal
+-- binding words `nominal` and `using`, both bare. Section 3 is unchanged throughout: none of
+-- those four words is reserved.
 expect_count('reserved-word', #reserved, 72)
-expect_count('bare contextual-keyword', #bare, 97)
+expect_count('bare contextual-keyword', #bare, 99)
 expect_count('dashed contextual-keyword', #dashed, 32)
 
 expect_all_keywordish('reserved', reserved)
