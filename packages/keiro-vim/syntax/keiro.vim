@@ -12,11 +12,18 @@ syntax match keiroComment /#.*$/ contains=@Spell
 syntax match keiroStringEscape /\\["\\ntr]/ contained
 syntax region keiroString start=/"/ end=/"/ oneline contains=keiroStringEscape
 
-" --- Numbers: versions (v2), durations (5m), fractionals (1.5), integers ---
-syntax match keiroNumber /\<v\d\+\>/
+" --- Numbers: integers, durations (5m), fractionals (1.5), versions (v2) ---
+" Order matters, and it is the *opposite* of a TextMate grammar's. Vim resolves a tie between
+" two items that start at the same column in favour of the one defined LAST, so the plain
+" integer must come FIRST or it swallows the head of every longer form. It only ever collided
+" with the fractional rule — `\<\d\+\>` cannot match `5` in `5m` or the `2` in `v2`, because
+" '\>' needs a non-word character after the digits — but that collision left `1.5` rendering
+" as a coloured `1`, an uncoloured `.`, and a coloured `5`. Do not "tidy" these back to
+" longest-first; see docs/plans/9-reconcile-the-widened-aggregate-type-slots-and-fractional-register-initials.md.
+syntax match keiroNumber /\<\d\+\>/
 syntax match keiroNumber /\<\d\+\a\+\>/
 syntax match keiroNumber /\<\d\+\.\d\+\>/
-syntax match keiroNumber /\<\d\+\>/
+syntax match keiroNumber /\<v\d\+\>/
 
 " --- Booleans and other language constants --------------------------------
 syntax keyword keiroBoolean true false

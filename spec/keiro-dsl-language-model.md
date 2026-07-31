@@ -75,15 +75,26 @@ from the surrounding string body. Strings are not expected to span lines in prac
 There are three numeric forms. A highlighter should treat all three as the **Number** token
 class (Section 6):
 
-- **Plain decimal integers** — `[0-9]+` (e.g. `0`, `1`, `10`, `2024`). In a register
-  initializer, and as the default value of a mapped-type wire field's `on-missing=` clause
-  (Section 4), the integer may carry a leading `-` sign (`-?[0-9]+`, e.g. `count Int = -1`
-  and `on-missing=-1`; parsers `signedDecimalText` and `integerLiteral`). Because `-` is also
-  the transition/arrow operator, a purely lexical highlighter colors the digits as a number
-  and the `-` as an operator — that is the correct, non-over-reaching behavior.
-- **Fractional decimals** — a digit run, a `.`, and a digit run, `[0-9]+\.[0-9]+` (e.g. a
-  backoff `multiplier=1.5`; parser `decimalText`). Match this before the plain integer so
-  `1.5` is one number and not `1` `.` `5`.
+- **Plain decimal integers** — `[0-9]+` (e.g. `0`, `1`, `10`, `2024`). Two slots admit a
+  leading `-` sign. A **register initializer** takes `-?[0-9]+(\.[0-9]+)?` — signed, and
+  optionally fractional since keiro-dsl commit `da09736` widened `signedDecimalText` (e.g.
+  `count Int = -1`, `fractional Natural = -1.5`). The default value of a mapped-type wire
+  field's `on-missing=` clause (Section 4) takes `-?[0-9]+` only; its parser `integerLiteral`
+  is a separate rule and admits no fractional part. In both slots the `-` is a *separate*
+  token: the digits take the **Number** class and the lone `-` is left as **uncolored
+  punctuation**, because Section 5's operator list contains `-->`, `--`, and `->` but no bare
+  `-`, and claiming one would put a color on the first character of every transition arrow.
+  Both packages behave this way today.
+- **Fractional decimals** — a digit run, a `.`, and a digit run, `[0-9]+\.[0-9]+`. Two homes:
+  a backoff `multiplier=1.5` (parser `decimalText`), and — since `da09736` — a register
+  initializer (parser `signedDecimalText`, above), which is now the commoner of the two.
+  What a highlighter must guarantee is the *outcome*: `1.5` is **one whole token**, not `1`
+  `.` `5`. The ordering that achieves it is engine-dependent, so do not copy a rule order
+  between engines. A TextMate grammar takes the first listed alternative that matches, so
+  the fractional pattern goes *before* the plain integer; Vim resolves a same-start-column
+  tie in favour of the item defined **last**, so there the fractional `syntax match` goes
+  *after* it. Getting this backwards is silent — the leading digit is still colored, so an
+  assertion that reads only a token's first character passes either way.
 - **Version tokens** — a literal `v` immediately followed by digits, `v[0-9]+` (e.g. `v2`,
   `v3`). These appear after an event name, as in `event Touched v2`.
 - **Duration tokens** — digits immediately followed by a single unit letter `s`, `m`, or `h`,
@@ -92,9 +103,11 @@ class (Section 6):
   only `s`/`m`/`h`; there is no `d` unit.)
 
 Because the version, duration, and fractional forms all start with the integer pattern, a
-highlighter should match the longer forms (`v[0-9]+`, `[0-9]+[a-z]+`, `[0-9]+\.[0-9]+`)
-before, or together with, the plain integer so that the trailing letters or fractional part
-are colored as part of the number.
+highlighter must arrange its rules so that the longer forms (`v[0-9]+`, `[0-9]+[a-z]+`,
+`[0-9]+\.[0-9]+`) win over the plain integer and the trailing letters or fractional part are
+colored as part of the number — by rule order, by a single combined pattern, or however the
+engine expresses precedence. See the fractional bullet above for why "put the longer form
+first" is not portable advice.
 
 ### Identifiers
 
@@ -347,7 +360,34 @@ Four facts a highlighter implementer needs:
   mapped type. All nine literal spellings are **Primitive types** in Section 6, alongside the
   pre-existing `Int` and `Text`. Note that `Map` (capital) is a primitive type while the
   reserved `map` (lowercase, Section 3) is a control keyword: they are different words, and
-  both packages match case-sensitively.
+  both packages match case-sensitively. A one-argument constructor's argument may be written
+  bare (`Optional Text`) or parenthesized (`Optional(Text)`); the parentheses are **uncolored
+  punctuation**, like the braces of a field list.
+- **That same type slot is no longer confined to a `mapped` declaration.** keiro-dsl commit
+  `da09736` made `pMappedTypeExpr` the type slot of an **aggregate register** (`pRegDecl`,
+  which read a bare `ident` before) and of an **aggregate command/event field**
+  (`pAggregateField`, likewise). So all ten spellings now appear in the two most-written
+  slots in the language:
+
+  ```text
+  regs
+    observedAt Time    = "2026-01-02T03:04:05.123456789012Z"
+    revision   Natural = 0
+
+  command Record { observedAt:Time revision:Natural }
+  event   ScalarsRecorded { observedAt:UTCTime revision:Natural }
+  ```
+
+  **Process and router** fields keep the older bare-identifier slot (parser `pField`), which
+  upstream keeps separate precisely so widening aggregate syntax does not widen those node
+  families. That distinction is invisible to a lexical highlighter and neither package models
+  it. The widening needed **no rule change in either package**, because Section 1's rule —
+  a word is a keyword because it is in a fixed list, not because of where it appears — means
+  both packages already matched these spellings everywhere. Do not "improve" that by scoping
+  the type rules to a `mapped` block: it would uncolor every aggregate written after this
+  commit. A later, *semantic* pass in keiro-dsl narrows which of these an aggregate may
+  actually carry (`Optional`, `List`, `Map`, and `Json` are rejected there), but that is a
+  diagnostic on a file that parsed, and a highlighter must still tokenize it.
 - **The `on-missing=` slot accepts exactly seven value forms** (parser `pOnMissing`): `null`,
   `[]`, `{}`, `true`, `false`, a quoted string, a signed integer, or a bare constructor name.
   `null` is a **Language constant** in Section 6, like `HOLE`; `true` and `false` already are.
@@ -414,7 +454,7 @@ to. Both packages must classify the identical literal words into the keyword cla
 | Control / section keyword | all other reserved keywords (Section 3) **and** all curated contextual keywords (Section 4) *except the words the Modifier and Language-constant rows below claim*, e.g. `regs`, `states`, `command`, `event`, `wire`, `guard`, `write`, `goto`, `snapshot`, `module`, `layout`, `resolve`, `dispatch-each`, `read-model`, `category`, `persist`, `patch`, `continueAsNew`, `columns`, `feed`, `scope`, `shape`, `on`, `advance`, `schedule`, `timer`, `bind`, `accept`, `map`, `step`, `await`, and the mapped-type vocabulary `haskell`, `package`, `type`, `binding`, `binding-version`, `canonical-type`, `codec`, `fixtures`, `initial`, `object`, `constructor`, `string`, `tagged-object`, `tag`, `contents`, `as`, `unknown-fields`, `reject`, `ignore`, `on-missing`, ... | `keyword.control.keiro` | `Statement` |
 | Modifier | `deprecated`, `retiring` (the two mutually exclusive event prefixes — see Section 3), `upcast`, `from`, `consistency`, `required`, `stable`, `strategy`, `via`, `policy`, `prefix`, `kind`, the mapped-type words `structural`, `opaque`, `record`, `union` (which select the family and shape of a `mapped` declaration) and `optional` (`required`'s partner on a wire field — see Section 4), and the dashed `replay-only` (the transition prefix — see Section 4; being dashed it must be matched before bare words) | `storage.modifier.keiro` | `StorageClass` |
 | Language constant | `true`, `false`, `null` (the `on-missing=null` sentinel — see Section 4), `HOLE`, `placeholder`, `skip`, `hole` | `constant.language.keiro` (give `true` / `false` the more specific `constant.language.boolean.keiro`; `null` takes the general scope) | `Boolean` for `true` / `false`, else `Constant` |
-| Primitive type | `Bool`, `Int`, `Text`, `Time`, `Id`, `Maybe`, `typeid`, `text`, `int`, and the mapped-type spellings `Natural`, `UTCTime` (an alias for `Time`), `Json`, `Optional`, `List`, `Map` (see Section 4 — `Map` capitalized is a type, the reserved lowercase `map` is a control keyword, and both packages match case-sensitively) | `support.type.keiro` | `Type` |
+| Primitive type | `Bool`, `Int`, `Text`, `Time`, `Id`, `Maybe`, `typeid`, `text`, `int`, and the mapped-type spellings `Natural`, `UTCTime` (an alias for `Time`), `Json`, `Optional`, `List`, `Map` (see Section 4 — `Map` capitalized is a type, the reserved lowercase `map` is a control keyword, and both packages match case-sensitively). These are matched **unconditionally, everywhere**, not only inside a `mapped` declaration: since keiro-dsl `da09736` the same type grammar is also an aggregate register's and an aggregate command/event field's type slot (Section 4) | `support.type.keiro` | `Type` |
 | Declaration-site type name | a CamelCase plain identifier appearing immediately after a declaration introducer that names a type (`enum X`, `aggregate X`, `contract X`, `command X`, `event X`, `id X`, `workflow X`, `operation X`, `process X`) or immediately after a `mapped` declaration's shape word (`record X`, `union X`, `opaque X`; `mapped structural enum X` is already covered by the `enum X` case) | `entity.name.type.keiro` | `Type` |
 | String | `"..."` (Section 2) | `string.quoted.double.keiro` | `String` |
 | String escape | one of `\"`, `\\`, `\n`, `\t`, `\r` inside a string (Section 2) | `constant.character.escape.keiro` | `SpecialChar` |

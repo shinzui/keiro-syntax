@@ -1,0 +1,63 @@
+# keiro-dsl aggregate scalar types — the register type slot and the command/event field type
+# slot now take the whole mapped type expression grammar instead of a bare identifier, and a
+# register initializer may now carry a fractional part. Every keyword named in this comment —
+# regs, command, event, Natural, Optional, Map — must stay Comment, not keyword.
+context aggregate-scalar-types
+
+mapped structural record LedgerNote {
+  haskell package=ledger-domain module=Example.Ledger.Domain type=LedgerNote
+  binding = "Example.Ledger.KeiroBindings.ledgerNoteBinding"
+  binding-version = "1"
+  canonical-type = "example.ledger.LedgerNote.v1"
+  fixtures = "Example.Ledger.KeiroBindings.ledgerNoteCases"
+  initial = "Example.Ledger.KeiroBindings.emptyLedgerNote"
+  wire object constructor=LedgerNote unknown-fields=reject {
+    memo as "memo" : Text required
+  }
+}
+
+aggregate ScalarLedger
+  regs
+    # A register type is a type expression now, so the primitive spellings that used to be
+    # confined to a mapped type's wire block reach this slot too.
+    observedAt  Time       = "2026-01-02T03:04:05.123456789012Z"
+    revision    Natural    = 0
+    balance     Int        = -1
+    settled     Bool       = False
+    label       Text       = placeholder
+    note        LedgerNote = initial
+  states Empty Recorded!
+
+  # Aggregate command and event fields accept the same type expressions. A bare field name
+  # still reuses the inferred type, as `label` does here.
+  command Record { observedAt:Time revision:Natural balance:Int settled:Bool label }
+  event   ScalarsRecorded { observedAt:UTCTime revision:Natural note:LedgerNote }
+
+  Empty -- Record -->
+    guard observedAt >= observedAt && revision >= revision
+    write observedAt := observedAt
+    write revision := revision
+    emit  ScalarsRecorded
+    goto  Recorded
+
+  wire kind=ctorName fields=camelCase schemaVersion=1
+  snapshot every 1 state-codec version = 1 shape-hash = "aggregate-scalars-v1"
+
+# The parser admits every type expression in these slots and leaves the ruling on which ones
+# an aggregate can actually carry to a later, semantic pass. A highlighter colours text as it
+# is typed, so the shapes below — which parse here and are then rejected downstream — must
+# still tokenize, exactly as the accepted ones do.
+aggregate ProbeLedger
+  regs
+    fractional Natural = -1.5
+  states Empty Done!
+
+  command Inspect { optionalValue:Optional(Text) values:List(Text) lookup:Map(Text) blob:Json }
+  event   Inspected { blob:Json }
+
+  Empty -- Inspect -->
+    guard blob == blob
+    emit  Inspected
+    goto  Done
+
+  wire kind=ctorName fields=camelCase schemaVersion=1

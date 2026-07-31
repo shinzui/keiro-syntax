@@ -27,6 +27,36 @@ local function locate(word)
   return nil, nil
 end
 
+-- Assert that `word` carries `want` on **every** character, not just its first.
+--
+-- expect() above reads the group at the located phrase's first character, which is silent
+-- about a literal the syntax file split. `1.5` is the case that matters: with the number
+-- matches declared longest-first, Vim's last-definition-wins tie-break handed `1` to the
+-- plain-integer rule and left the `.` uncoloured, and the first-character check passed
+-- anyway. It had passed that way since the assertion was written in plan 4. Same technique
+-- expect_all_keywordish uses below for dashed keywords, hoisted so single literals can use it.
+local function expect_uniform(word, want)
+  checks = checks + 1
+  local lnum, col = locate(word)
+  if not lnum then
+    failures = failures + 1
+    print(string.format('MISSING token %q in current buffer', word))
+    return
+  end
+  for c = col, col + #word - 1 do
+    local got = group_at(lnum, c)
+    if got ~= want then
+      failures = failures + 1
+      print(string.format('FAIL %q: want %s on every character, got %s at offset %d (%q) — a '
+        .. 'shorter rule is claiming part of the literal; see the number matches in '
+        .. 'syntax/keiro.vim', word, want, got == '' and '(none)' or got, c - col,
+        word:sub(c - col + 1, c - col + 1)))
+      return
+    end
+  end
+  print(string.format('ok   %q -> %s (all %d characters)', word, want, #word))
+end
+
 local function open(relpath)
   vim.cmd('silent! edit! ' .. repo_root .. '/' .. relpath)
   vim.cmd('syntax sync fromstart')
@@ -152,6 +182,57 @@ expect('ignore {', 'keiroStatement')
 expect('UTCTime', 'keiroType')
 -- The leading comment deliberately contains mapped-type keywords; the comment must win.
 expect('# keiro-dsl mapped-type', 'keiroComment')
+
+-- Widened aggregate type slots (keiro-dsl da09736). `pRegDecl` and the new `pAggregateField`
+-- swapped a bare identifier for the full `pMappedTypeExpr` grammar, so the ten type spellings
+-- that used to appear only inside a `mapped` declaration's wire block now appear in an
+-- aggregate's `regs` block and in its command/event field lists. keiro.vim matches them with
+-- unconditional 'syntax keyword' rules, so this needed no syntax-file change — these
+-- assertions exist to keep it that way.
+--
+-- expect() reads the group at the *first character* of the literal and finds the *first* line
+-- containing it, so every anchor here must begin with the token under test. Several words are
+-- also named in the file's leading comment, which is why the register assertions carry the
+-- ` = `-aligned tail: `Natural` alone would be found in the comment on line 4.
+open('corpus/aggregate-scalar-types.keiro')
+expect('# keiro-dsl aggregate', 'keiroComment')
+expect('# regs, command, event, Natural, Optional, Map', 'keiroComment')
+expect('aggregate ScalarLedger', 'keiroKeyword')
+-- The register type slot.
+expect('Time       =', 'keiroType')
+expect('Natural    =', 'keiroType')
+expect('Int        =', 'keiroType')
+expect('Bool       =', 'keiroType')
+expect('Text       =', 'keiroType')
+expect('placeholder', 'keiroConstant')
+-- The command/event field type slot, including the parenthesised one-argument constructors.
+-- `keiroTypeName` is deliberately not asserted for the `LedgerNote` register and field: the
+-- Vim rule for that optional refinement has never fired for any introducer (see plan 8), and
+-- Section 6 of spec/keiro-dsl-language-model.md marks the class optional.
+expect('Time revision', 'keiroType')
+expect('Natural balance', 'keiroType')
+expect('UTCTime', 'keiroType')
+expect('Optional(Text)', 'keiroType')
+expect('List(Text)', 'keiroType')
+expect('Map(Text)', 'keiroType')
+expect('Json }', 'keiroType')
+-- The aggregate around the widened slots is undisturbed.
+expect('command Record', 'keiroStatement')
+expect('guard observedAt', 'keiroStatement')
+expect(':=', 'keiroOperator')
+-- A fractional register initializer is one whole number token. `-` is not an operator in
+-- either package (Section 5 lists `-->`, `--`, and `->` but no bare `-`), so `-1.5` is an
+-- uncoloured `-` followed by this token.
+expect_uniform('1.5', 'keiroNumber')
+
+-- The same whole-token guard on the file that has carried the fractional assertion since
+-- plan 4, plus the other two multi-character numeric forms. Before this range keiro.vim
+-- declared its number matches longest-first and Vim's last-definition-wins tie-break split
+-- `1.5` into a coloured `1`, an uncoloured `.`, and a coloured `5`; expect() could not see it.
+open('corpus/router-readmodel-snapshot.keiro')
+expect_uniform('1.5', 'keiroNumber')
+expect_uniform('2s', 'keiroNumber')
+expect_uniform('v2', 'keiroNumber')
 
 -- Spec word-list coverage guards.
 --

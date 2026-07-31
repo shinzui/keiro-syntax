@@ -73,6 +73,21 @@ The remaining files are **hand-written for this repository**:
   deliberately contains mapped-type keywords so both suites can confirm a comment still wins
   over the words inside it. It backs the same reconciliation as
   `consumer-mapped-types.keiro`.
+- `aggregate-scalar-types.keiro` — authored here (2026-07-31) to exercise the two type slots
+  keiro-dsl commit `da09736` widened from a bare identifier to the whole `pMappedTypeExpr`
+  grammar: an **aggregate register's** type (`regs observedAt Time = "…"`) and an **aggregate
+  command/event field's** type (`command Record { observedAt:Time revision:Natural }`). Its
+  first aggregate covers the spellings an aggregate may actually carry — `Time`, `Natural`,
+  `Int`, `Bool`, `Text`, `UTCTime`, and a reference to the `mapped` type declared above it —
+  plus a bare (untyped) field and the register initializer forms. Its second aggregate,
+  `ProbeLedger`, covers the shapes that *parse* in those slots and are then rejected by a
+  later semantic pass — `Optional(Text)`, `List(Text)`, `Map(Text)`, `Json`, and a fractional
+  register initializer `-1.5` — because an editor must tokenize a file while its author is
+  still fixing the diagnostic. No single upstream fixture spans that surface: keiro-dsl's
+  `aggregate-scalars.keiro` omits the constructors, `UTCTime`, and the fractional
+  initializer, and `aggregate-scalars-invalid-capabilities.keiro` omits `UTCTime` and the
+  mapped-type reference. It backs the reconciliation recorded in
+  `docs/plans/9-reconcile-the-widened-aggregate-type-slots-and-fractional-register-initials.md`.
 
 ## Rules for consumers
 

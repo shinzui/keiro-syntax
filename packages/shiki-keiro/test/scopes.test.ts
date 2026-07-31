@@ -42,6 +42,37 @@ function expectScope(code: string, content: string, scope: string) {
   expect(scopes).toContain(scope)
 }
 
+// Assert that one grammar rule claims `content` *in its entirety* — not that some rule
+// claimed its leading characters.
+//
+// `expectScope` above finds the first explanation entry whose trimmed content equals
+// `content`, so it can only ever see a token the grammar already emitted whole; it is silent
+// about a literal that got split. `1.5` is the case that matters: an engine that prefers the
+// plain-integer rule emits `1`, `.`, `5` and a first-character check still reports
+// `constant.numeric.keiro`. The Vim package shipped exactly that defect from plan 4 until the
+// reconciliation of keiro-dsl da09736. Here we walk every explanation entry on the line and
+// require the one containing `content` to be exactly `content`.
+function expectWholeToken(code: string, content: string, scope: string) {
+  const lines = hl.codeToTokensBase(code, {
+    lang: 'keiro',
+    theme: 'github-light',
+    includeExplanation: true,
+  })
+  for (const line of lines) {
+    const parts = line.flatMap((t) => t.explanation ?? [])
+    const at = parts.findIndex((p) => p.content.includes(content))
+    if (at < 0) continue
+    expect(
+      parts[at]!.content,
+      `token ${JSON.stringify(content)} was split — the rule that should claim it whole is ` +
+        `losing to a shorter one; line tokenized as ${JSON.stringify(parts.map((p) => p.content))}`,
+    ).toBe(content)
+    expect(parts[at]!.scopes.map((s) => s.scopeName)).toContain(scope)
+    return
+  }
+  throw new Error(`token ${JSON.stringify(content)} not found`)
+}
+
 // Every scope in the grammar that means "this word is a keyword of some kind" — the union of
 // Section 6's Declaration introducer, Control / section keyword, Modifier, and Language
 // constant rows. The reserved-word guard below asserts membership in this set rather than a
@@ -153,6 +184,7 @@ const mappedSpellings = readFileSync(
   resolve(repoRoot, 'corpus/mapped-type-spellings.keiro'),
   'utf8',
 )
+const scalarTypes = readFileSync(resolve(repoRoot, 'corpus/aggregate-scalar-types.keiro'), 'utf8')
 
 test('comments get the comment scope', () => {
   expectScope(sampler, '# keiro-dsl lexical sampler — comments, strings, numbers, durations, versions', 'comment.line.number-sign.keiro')
@@ -330,6 +362,76 @@ test('mapped keywords inside a comment stay a comment', () => {
     '# Every keyword in this comment — mapped, record, wire, optional, Natural — must stay',
     'comment.line.number-sign.keiro',
   )
+})
+
+// --- Widened aggregate type slots (keiro-dsl da09736) ------------------------
+//
+// `pRegDecl` and the new `pAggregateField` swapped a bare identifier for the full
+// `pMappedTypeExpr` grammar, so the ten type spellings that used to appear only inside a
+// `mapped` declaration's wire block now appear in an aggregate's `regs` block and in its
+// command/event field lists. #types matches them unconditionally, so this needed no grammar
+// change — these assertions exist to keep it that way. Scoping #types by context would
+// uncolor every aggregate written after this commit and nothing else would notice.
+
+test('a register type expression gets support.type', () => {
+  // `Time`, `Natural`, `Int`, and `Bool` appear in this file only in the `regs` block, so
+  // finding them at all proves the register slot is covered. (`Text` is deliberately absent
+  // from this list: it also appears in the `mapped` block above the aggregate, so its first
+  // occurrence would not prove anything about the register slot.)
+  expectScope(scalarTypes, 'Time', 'support.type.keiro')
+  expectScope(scalarTypes, 'Natural', 'support.type.keiro')
+  expectScope(scalarTypes, 'Int', 'support.type.keiro')
+  expectScope(scalarTypes, 'Bool', 'support.type.keiro')
+})
+
+test('an aggregate command/event field type expression gets support.type', () => {
+  // `UTCTime`, `Json`, and the three one-argument constructors appear only in the field
+  // lists of this file, so finding them at all proves the field slot is covered.
+  expectScope(scalarTypes, 'UTCTime', 'support.type.keiro')
+  expectScope(scalarTypes, 'Json', 'support.type.keiro')
+  expectScope(scalarTypes, 'Optional', 'support.type.keiro')
+  expectScope(scalarTypes, 'List', 'support.type.keiro')
+  expectScope(scalarTypes, 'Map', 'support.type.keiro')
+})
+
+test('a mapped-type reference in an aggregate slot still names a type', () => {
+  // `LedgerNote` is the `mapped structural record` above the aggregate; #mapped-decl-with-name
+  // claims the declaration site, and the register and field that reference it tokenize plainly.
+  expectScope(scalarTypes, 'LedgerNote', 'entity.name.type.keiro')
+})
+
+test('the widened slots do not disturb the aggregate around them', () => {
+  expectScope(scalarTypes, 'aggregate', 'keyword.declaration.keiro')
+  expectScope(scalarTypes, 'regs', 'keyword.control.keiro')
+  expectScope(scalarTypes, 'states', 'keyword.control.keiro')
+  expectScope(scalarTypes, 'write', 'keyword.control.keiro')
+  expectScope(scalarTypes, 'guard', 'keyword.control.keiro')
+  // `command` and `event` are deliberately absent: #decl-with-name claims them together with
+  // the name that follows, so they carry `keyword.declaration.keiro` here rather than the
+  // control scope Section 6 gives them on their own. That is pre-existing behaviour, shared
+  // with every other `command X` in the corpus, and not something this range changed.
+  expectScope(scalarTypes, ':=', 'keyword.operator.keiro')
+  expectScope(scalarTypes, 'placeholder', 'constant.language.keiro')
+})
+
+test('type keywords inside a comment stay a comment', () => {
+  expectScope(
+    scalarTypes,
+    '# regs, command, event, Natural, Optional, Map — must stay Comment, not keyword.',
+    'comment.line.number-sign.keiro',
+  )
+})
+
+test('a fractional number is one whole token, signed or not', () => {
+  // The guard the Vim package needed. `-` is not an operator in either package (Section 5
+  // lists `-->`, `--`, and `->` but no bare `-`), so a signed initializer is an uncolored `-`
+  // followed by one whole number token.
+  expectWholeToken(scalarTypes, '1.5', 'constant.numeric.keiro')
+  expectWholeToken(surface, '1.5', 'constant.numeric.keiro')
+  // The other two multi-character numeric forms, so a future reordering of #numbers cannot
+  // trade one whole token for another.
+  expectWholeToken(surface, '2s', 'constant.numeric.keiro')
+  expectWholeToken(surface, 'v2', 'constant.numeric.keiro')
 })
 
 // --- Spec word-list coverage guards -----------------------------------------
