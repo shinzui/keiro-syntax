@@ -35,9 +35,23 @@ end
 -- plain-integer rule and left the `.` uncoloured, and the first-character check passed
 -- anyway. It had passed that way since the assertion was written in plan 4. Same technique
 -- expect_all_keywordish uses below for dashed keywords, hoisted so single literals can use it.
-local function expect_uniform(word, want)
+-- The optional third argument is an anchor phrase: locate *that* first, then find `word`
+-- inside the line it matched. Needed when the word under test also appears earlier in the
+-- file inside a comment — `corpus/language-preamble.keiro` deliberately names `language` and
+-- `keiro-dsl` in its banner so the comment-wins check has something to bite on, which would
+-- otherwise send this helper to a comment line and fail for the wrong reason.
+local function expect_uniform(word, want, anchor)
   checks = checks + 1
-  local lnum, col = locate(word)
+  local lnum, col
+  if anchor then
+    local alnum, acol = locate(anchor)
+    if alnum then
+      local rel = vim.fn.match(vim.fn.getline(alnum), '\\V' .. vim.fn.escape(word, '\\'), acol - 1)
+      if rel >= 0 then lnum, col = alnum, rel + 1 end
+    end
+  else
+    lnum, col = locate(word)
+  end
   if not lnum then
     failures = failures + 1
     print(string.format('MISSING token %q in current buffer', word))
@@ -234,6 +248,33 @@ expect_uniform('1.5', 'keiroNumber')
 expect_uniform('2s', 'keiroNumber')
 expect_uniform('v2', 'keiroNumber')
 
+-- The language version preamble (keiro-dsl 4523b52). A `.keiro` source may now open with
+-- `language keiro-dsl <positive-decimal>`, the only clause that sits above `context`. Both
+-- words are new to keiro.vim; neither is reserved.
+--
+-- The file's comment banner names both words, so the code anchors below must begin with the
+-- token under test: expect() finds the *first* line containing the literal.
+open('corpus/language-preamble.keiro')
+expect('# keiro-dsl language version preamble', 'keiroComment')
+expect('# deciding which line is first', 'keiroComment')
+expect('language keiro-dsl 1', 'keiroKeyword')
+-- `keiro-dsl` must be claimed by the dashed match across its whole spelling, not split into a
+-- plain `keiro` and a plain `-dsl`. expect() reads only the first character, so use the
+-- uniform helper — the same blind spot plans 8 and 9 had to close for dashed words.
+expect_uniform('keiro-dsl', 'keiroStatement', 'language keiro-dsl 1')
+expect_uniform('language', 'keiroKeyword', 'language keiro-dsl 1')
+-- The preamble's version is an ordinary number; there is no separate version class.
+expect('1', 'keiroNumber')
+-- The preamble leaves the header clauses and the aggregate below it undisturbed.
+expect('context journal-service', 'keiroKeyword')
+expect('module Acme.Services', 'keiroStatement')
+expect('layout prefixed', 'keiroStatement')
+expect('aggregate Journal', 'keiroKeyword')
+expect('regs', 'keiroStatement')
+expect('Natural = 0', 'keiroType')
+expect('placeholder', 'keiroConstant')
+expect(':=', 'keiroOperator')
+
 -- Spec word-list coverage guards.
 --
 -- `retiring` joined the parser's `reservedWords` in keiro-dsl 75286d7 without changing how the
@@ -348,9 +389,11 @@ local reserved = word_blocks_from_spec('## Section 3', 1)[1]
 local contextual = word_blocks_from_spec('## Section 4', 2)
 local bare, dashed = contextual[1], contextual[2]
 
+-- 96 -> 97 and 31 -> 32 at keiro-dsl 4523b52, which added the version preamble's `language`
+-- (bare) and `keiro-dsl` (dashed). Section 3 is unchanged: neither word is reserved.
 expect_count('reserved-word', #reserved, 72)
-expect_count('bare contextual-keyword', #bare, 96)
-expect_count('dashed contextual-keyword', #dashed, 31)
+expect_count('bare contextual-keyword', #bare, 97)
+expect_count('dashed contextual-keyword', #dashed, 32)
 
 expect_all_keywordish('reserved', reserved)
 expect_all_keywordish('contextual', bare)

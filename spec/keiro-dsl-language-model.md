@@ -29,6 +29,24 @@ need to understand event sourcing to highlight the language — this document de
   because it is in a fixed list, not because of where it appears (with the two clearly-marked
   *optional* contextual refinements in Section 6).
 
+**The optional version preamble.** Since keiro-dsl commit `4523b52` a `.keiro` source may
+open with a clause naming the released language contract it was written against:
+
+```text
+language keiro-dsl 1
+context hospital-capacity
+```
+
+It is optional — a source without one is a *legacy unversioned* source and parses
+identically. When present it must be the first line of the file that is neither blank nor a
+comment, so it may sit **below** a comment banner, and it may appear only once. (Parser: a
+new two-stage entry point `parseSource` runs `selectSourceLanguage` over the raw text before
+any grammar is chosen; `significantLines` strips each line's `#` comment and drops the lines
+that are then empty.) The clause is exactly three tokens: the word `language`, the word
+`keiro-dsl`, and a positive decimal version. Neither word is reserved, so both are listed in
+Section 4, which also explains why a highlighter must **not** try to model the placement
+rule.
+
 **Authoritative source.** Every fact in this document is confirmed against the keiro-dsl
 parser, a Haskell file using the `megaparsec` library:
 `/Users/shinzui/Keikaku/bokuno/keiro/keiro-dsl/src/Keiro/Dsl/Parser.hs`. The reserved-keyword
@@ -75,7 +93,10 @@ from the surrounding string body. Strings are not expected to span lines in prac
 There are three numeric forms. A highlighter should treat all three as the **Number** token
 class (Section 6):
 
-- **Plain decimal integers** — `[0-9]+` (e.g. `0`, `1`, `10`, `2024`). Two slots admit a
+- **Plain decimal integers** — `[0-9]+` (e.g. `0`, `1`, `10`, `2024`). The version in the
+  `language keiro-dsl 1` preamble (Section 1) is one of these — parser
+  `lexeme (some digitChar)` — and takes the Number class like any other integer; there is no
+  separate "version" class for it. Two slots admit a
   leading `-` sign. A **register initializer** takes `-?[0-9]+(\.[0-9]+)?` — signed, and
   optionally fractional since keiro-dsl commit `da09736` widened `signedDecimalText` (e.g.
   `count Int = -1`, `fractional Natural = -1.5`). The default value of a mapped-type wire
@@ -235,7 +256,7 @@ maxAttempts  delay       readModel   field       to          envelope
 every        partial     header      schema      version     inline
 row          halt        poison      rejected    group       provision
 outcome      fixture     interval    retention   standard    unlogged
-partitioned  unordered   off         strict      lenient
+partitioned  unordered   off         strict      lenient     language
 as           binding     codec       constructor contents    fixtures
 haskell      ignore      initial     null        object      opaque
 optional     package     record      reject      string      structural
@@ -258,12 +279,13 @@ on-ok          on-reject       on-error      on-ambiguous  not-mine
 unknown-status max-attempts    dead-letter   kafka-key     kafka-cursor
 on-blocked     on-terminal     state-codec   shape-hash    full-envelope
 dedupe-only    entire-log      fifo-throughput fifo-roundrobin
-replay-only    cross-check     binding-version canonical-type on-missing
-tagged-object  unknown-fields
+replay-only    cross-check     keiro-dsl
+binding-version canonical-type  on-missing    tagged-object unknown-fields
 ```
 
-The last five — `binding-version` through `unknown-fields` — belong to the **mapped type
-declaration** described below. `cross-check` is not new: it is a real `keyword "cross-check"`
+`keiro-dsl` is the dialect name in the **version preamble** described in its own subsection
+below. The last five — `binding-version` through `unknown-fields` — belong to the **mapped
+type declaration** described after it. `cross-check` is not new: it is a real `keyword "cross-check"`
 in `Parser.hs` (it appears in an intake `bind messageId from header "…" required cross-check
 body` clause) that both packages have matched since the reconciliation recorded in
 `docs/plans/4-reconcile-highlighters-with-keiro-dsl-lexical-surface-20-new-reserved-words-string-escapes-signed-decimal-numbers.md`;
@@ -308,6 +330,54 @@ prefer the match that starts earlier in the line. For the prefix cases, Vim need
 word declared as a `syntax match … /\<word\>-\@!/` rather than a `syntax keyword`, because
 Vim's `syntax keyword` outranks a `syntax match` that begins at the same column. A TextMate
 grammar needs no such trick, only the dashed rule listed earlier in its `patterns` array.
+
+`keiro-dsl` is the one entry in the dashed list whose leading segment is **not** a keyword at
+all — `keiro` means nothing to either package, and neither does `dsl` — so it needs neither
+the `-\@!` treatment nor any reordering. It needs only to *be* in the dashed rule, so the
+whole spelling is claimed as one token instead of falling through as plain text.
+
+### The language version preamble
+
+Since keiro-dsl commit `4523b52` a `.keiro` source may open with a clause naming the released
+language contract it was written against (Section 1):
+
+```text
+# A comment banner may precede the preamble.
+
+language keiro-dsl 1
+context hospital-capacity
+```
+
+Two literal words, neither of them reserved:
+
+- **`language`** is a **Declaration introducer** in Section 6 — the same class as `context`
+  and `aggregate`. It is the only word in the language that begins a clause sitting *outside*
+  the spec body altogether: the parser selects the source's language contract before it
+  chooses a body grammar at all, so nothing is more top-level than this. (Contrast `module`
+  and `layout`, which are Control keywords because `pSpec` reads them *after* `context`, as
+  clauses of the context declaration.)
+- **`keiro-dsl`** is a **Control / section keyword**, matched with the dashed rules above. It
+  is a fixed literal read by `keyword "keiro-dsl"`, not a user-chosen name, so the precedent
+  of the uncoloured wire word after `context` does not apply to it; it behaves like the other
+  fixed enumerated clause values in the control class (`reject`, `ignore`, `standard`,
+  `unlogged`).
+
+The version itself is an ordinary **Number** (Section 2). There is no separate version token
+class.
+
+**A highlighter must not model the placement rule.** The parser requires the preamble to be
+the first *significant* line — first after blank lines and `#` comments are removed — and
+allows at most one; a misplaced or duplicated one is rejected with a `MisplacedLanguagePreamble`
+or `DuplicateLanguagePreamble` diagnostic. Neither package encodes any of that. Section 1's
+rule stands: a word is a keyword because it is in a fixed list, not because of where it
+appears. Two consequences follow, and both are intended. A file whose preamble is in the
+wrong place still tokenizes — which is what an editor must do while its author is fixing the
+diagnostic. And `language` used as an ordinary identifier is coloured as a keyword, exactly
+like `initial`, `key`, and `value` before it. (`language` really is still legal as an
+identifier, but only *mid-line*: the parser tests whether a significant line's **first word**
+is `language`, so a field written `command Record { language:Text }` parses while a register
+declared on its own line as `language Text = "en"` does not. That is a parser trap, not a
+highlighting one.)
 
 ### The mapped type declaration
 
@@ -450,8 +520,8 @@ to. Both packages must classify the identical literal words into the keyword cla
 
 | Token class | Members / pattern | TextMate scope | Vim group |
 |---|---|---|---|
-| Declaration introducer | the subset of reserved + contextual words that begin a top-level item or node: `context`, `id`, `enum`, `rule`, `mapped`, `aggregate`, `process`, `router`, `contract`, `intake`, `emit`, `publisher`, `workqueue`, `dispatch`, `readmodel`, `workflow`, `operation` | `keyword.declaration.keiro` | `Keyword` |
-| Control / section keyword | all other reserved keywords (Section 3) **and** all curated contextual keywords (Section 4) *except the words the Modifier and Language-constant rows below claim*, e.g. `regs`, `states`, `command`, `event`, `wire`, `guard`, `write`, `goto`, `snapshot`, `module`, `layout`, `resolve`, `dispatch-each`, `read-model`, `category`, `persist`, `patch`, `continueAsNew`, `columns`, `feed`, `scope`, `shape`, `on`, `advance`, `schedule`, `timer`, `bind`, `accept`, `map`, `step`, `await`, and the mapped-type vocabulary `haskell`, `package`, `type`, `binding`, `binding-version`, `canonical-type`, `codec`, `fixtures`, `initial`, `object`, `constructor`, `string`, `tagged-object`, `tag`, `contents`, `as`, `unknown-fields`, `reject`, `ignore`, `on-missing`, ... | `keyword.control.keiro` | `Statement` |
+| Declaration introducer | the subset of reserved + contextual words that begin a top-level item or node: `language` (the version preamble, which begins the only clause outside the spec body — see Section 4), `context`, `id`, `enum`, `rule`, `mapped`, `aggregate`, `process`, `router`, `contract`, `intake`, `emit`, `publisher`, `workqueue`, `dispatch`, `readmodel`, `workflow`, `operation` | `keyword.declaration.keiro` | `Keyword` |
+| Control / section keyword | all other reserved keywords (Section 3) **and** all curated contextual keywords (Section 4) *except the words the Modifier and Language-constant rows below claim*, e.g. `regs`, `states`, `command`, `event`, `wire`, `guard`, `write`, `goto`, `snapshot`, `module`, `layout`, `resolve`, `dispatch-each`, `read-model`, `category`, `persist`, `patch`, `continueAsNew`, `columns`, `feed`, `scope`, `shape`, `on`, `advance`, `schedule`, `timer`, `bind`, `accept`, `map`, `step`, `await`, the version preamble's dialect name `keiro-dsl` (dashed — see Section 4), and the mapped-type vocabulary `haskell`, `package`, `type`, `binding`, `binding-version`, `canonical-type`, `codec`, `fixtures`, `initial`, `object`, `constructor`, `string`, `tagged-object`, `tag`, `contents`, `as`, `unknown-fields`, `reject`, `ignore`, `on-missing`, ... | `keyword.control.keiro` | `Statement` |
 | Modifier | `deprecated`, `retiring` (the two mutually exclusive event prefixes — see Section 3), `upcast`, `from`, `consistency`, `required`, `stable`, `strategy`, `via`, `policy`, `prefix`, `kind`, the mapped-type words `structural`, `opaque`, `record`, `union` (which select the family and shape of a `mapped` declaration) and `optional` (`required`'s partner on a wire field — see Section 4), and the dashed `replay-only` (the transition prefix — see Section 4; being dashed it must be matched before bare words) | `storage.modifier.keiro` | `StorageClass` |
 | Language constant | `true`, `false`, `null` (the `on-missing=null` sentinel — see Section 4), `HOLE`, `placeholder`, `skip`, `hole` | `constant.language.keiro` (give `true` / `false` the more specific `constant.language.boolean.keiro`; `null` takes the general scope) | `Boolean` for `true` / `false`, else `Constant` |
 | Primitive type | `Bool`, `Int`, `Text`, `Time`, `Id`, `Maybe`, `typeid`, `text`, `int`, and the mapped-type spellings `Natural`, `UTCTime` (an alias for `Time`), `Json`, `Optional`, `List`, `Map` (see Section 4 — `Map` capitalized is a type, the reserved lowercase `map` is a control keyword, and both packages match case-sensitively). These are matched **unconditionally, everywhere**, not only inside a `mapped` declaration: since keiro-dsl `da09736` the same type grammar is also an aggregate register's and an aggregate command/event field's type slot (Section 4) | `support.type.keiro` | `Type` |

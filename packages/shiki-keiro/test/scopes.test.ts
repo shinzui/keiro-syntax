@@ -52,7 +52,13 @@ function expectScope(code: string, content: string, scope: string) {
 // `constant.numeric.keiro`. The Vim package shipped exactly that defect from plan 4 until the
 // reconciliation of keiro-dsl da09736. Here we walk every explanation entry on the line and
 // require the one containing `content` to be exactly `content`.
-function expectWholeToken(code: string, content: string, scope: string) {
+//
+// The optional `anchor` restricts the search to lines that contain it. Needed when the token
+// under test also appears earlier in the file inside a comment — `corpus/language-preamble.keiro`
+// deliberately names `language` and `keiro-dsl` in its banner so the comment-wins check has
+// something to bite on, and without an anchor this helper would report the banner as a "split"
+// token and fail for the wrong reason.
+function expectWholeToken(code: string, content: string, scope: string, anchor?: string) {
   const lines = hl.codeToTokensBase(code, {
     lang: 'keiro',
     theme: 'github-light',
@@ -60,6 +66,7 @@ function expectWholeToken(code: string, content: string, scope: string) {
   })
   for (const line of lines) {
     const parts = line.flatMap((t) => t.explanation ?? [])
+    if (anchor && !parts.map((p) => p.content).join('').includes(anchor)) continue
     const at = parts.findIndex((p) => p.content.includes(content))
     if (at < 0) continue
     expect(
@@ -185,6 +192,7 @@ const mappedSpellings = readFileSync(
   'utf8',
 )
 const scalarTypes = readFileSync(resolve(repoRoot, 'corpus/aggregate-scalar-types.keiro'), 'utf8')
+const preamble = readFileSync(resolve(repoRoot, 'corpus/language-preamble.keiro'), 'utf8')
 
 test('comments get the comment scope', () => {
   expectScope(sampler, '# keiro-dsl lexical sampler — comments, strings, numbers, durations, versions', 'comment.line.number-sign.keiro')
@@ -434,6 +442,48 @@ test('a fractional number is one whole token, signed or not', () => {
   expectWholeToken(surface, 'v2', 'constant.numeric.keiro')
 })
 
+// --- The language version preamble (keiro-dsl 4523b52) -----------------------
+//
+// A `.keiro` source may now open with `language keiro-dsl <positive-decimal>`, the only clause
+// that sits above `context`. Both words are new to the grammar; neither is reserved.
+
+test('the language version preamble gets keyword.declaration', () => {
+  expectScope(preamble, 'language', 'keyword.declaration.keiro')
+})
+
+test('the preamble dialect name gets keyword.control as one whole token', () => {
+  // The point is that `keiro-dsl` is ONE explanation entry. If #dashed-keywords stopped
+  // claiming it, the line would tokenize as plain text and this fails on the split.
+  expectWholeToken(preamble, 'keiro-dsl', 'keyword.control.keiro', 'language keiro-dsl 1')
+})
+
+test('the preamble version is an ordinary number', () => {
+  // No separate version token class: `lexeme (some digitChar)` upstream, Number here. The
+  // preamble is the file's first digit, so the first `1` found is the version.
+  expectScope(preamble, '1', 'constant.numeric.keiro')
+})
+
+test('a preamble does not disturb the header clauses below it', () => {
+  expectScope(preamble, 'context', 'keyword.declaration.keiro')
+  expectScope(preamble, 'module', 'keyword.control.keiro')
+  expectScope(preamble, 'layout', 'keyword.control.keiro')
+  expectScope(preamble, 'prefixed', 'keyword.control.keiro')
+  expectScope(preamble, 'aggregate', 'keyword.declaration.keiro')
+  expectScope(preamble, 'regs', 'keyword.control.keiro')
+  expectScope(preamble, 'Natural', 'support.type.keiro')
+  expectScope(preamble, ':=', 'keyword.operator.keiro')
+})
+
+test('a comment banner above the preamble stays a comment', () => {
+  // The parser strips comments before deciding which line is first, so the preamble is legal
+  // below this banner — and the banner names both new words, which must stay Comment.
+  expectScope(
+    preamble,
+    '# deciding which line is first. Every word named in this comment — language, keiro-dsl,',
+    'comment.line.number-sign.keiro',
+  )
+})
+
 // --- Spec word-list coverage guards -----------------------------------------
 //
 // `retiring` joined the parser's `reservedWords` in keiro-dsl 75286d7 without changing how
@@ -453,10 +503,12 @@ test('the spec Section 3 list holds the parser 72 reserved words', () => {
   expect(reservedWordsFromSpec().length).toBe(72)
 })
 
-test('the spec Section 4 lists 96 bare and 31 dashed contextual keywords', () => {
+test('the spec Section 4 lists 97 bare and 32 dashed contextual keywords', () => {
+  // 96 -> 97 and 31 -> 32 at keiro-dsl 4523b52, which added the version preamble's `language`
+  // (bare) and `keiro-dsl` (dashed). Section 3 is unchanged: neither word is reserved.
   const { bare, dashed } = contextualWordsFromSpec()
-  expect(bare.length).toBe(96)
-  expect(dashed.length).toBe(31)
+  expect(bare.length).toBe(97)
+  expect(dashed.length).toBe(32)
 })
 
 test('every reserved word is classified as a keyword by the grammar', () => {

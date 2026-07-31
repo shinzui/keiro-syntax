@@ -40,6 +40,10 @@ syntax keyword keiroType typeid text int
 " --- Declaration-introducer keywords --------------------------------------
 syntax keyword keiroKeyword context id enum rule mapped aggregate process router contract
 syntax keyword keiroKeyword intake emit publisher workqueue readmodel workflow operation
+" `language` opens the optional version preamble (`language keiro-dsl 1`), the only clause
+" that sits above `context`. Matched unconditionally like every other word here: the parser's
+" first-significant-line rule is not something a lexical highlighter models.
+syntax keyword keiroKeyword language
 " `dispatch` is an introducer, but a 'syntax keyword' would win over (and mis-color) the
 " dashed `dispatch-each` / `dispatch-id` control words. Match bare `dispatch` only when it
 " is NOT followed by '-', leaving the dashed words to the keiroStatement matches below.
@@ -97,6 +101,11 @@ syntax match keiroStatement /\<\%(state-codec\|shape-hash\|full-envelope\|dedupe
 syntax match keiroStatement /\<\%(entire-log\|fifo-throughput\|fifo-roundrobin\)\>/
 syntax match keiroStatement /\<\%(on-blocked\|on-missing\|unknown-fields\)\>/
 syntax match keiroStatement /\<\%(binding-version\|canonical-type\|tagged-object\)\>/
+" `keiro-dsl` is the dialect name in the version preamble. It is the one dashed word here
+" whose leading segment is not itself a keyword — `keiro` and `dsl` mean nothing to this file
+" — so unlike `on-ok` or `dispatch-each` it needs no '-\@!' guard on a bare prefix. It only
+" has to be matched at all, so the whole spelling is one token instead of plain text.
+syntax match keiroStatement /\<keiro-dsl\>/
 
 " Bare words that are a *prefix* of a dashed word above must not be 'syntax keyword': a
 " keyword outranks a match starting at the same column, so `on` would claim the head of

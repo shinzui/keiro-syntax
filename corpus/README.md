@@ -88,6 +88,19 @@ The remaining files are **hand-written for this repository**:
   initializer, and `aggregate-scalars-invalid-capabilities.keiro` omits `UTCTime` and the
   mapped-type reference. It backs the reconciliation recorded in
   `docs/plans/9-reconcile-the-widened-aggregate-type-slots-and-fractional-register-initials.md`.
+- `language-preamble.keiro` — authored here (2026-07-31) to exercise the **optional version
+  preamble** keiro-dsl commit `4523b52` added above `context`: `language keiro-dsl 1`. It is
+  hand-written because no upstream fixture uses the preamble at all — every versioned source
+  in that commit is an inline string literal in `keiro-dsl/test/Main.hs`. The file
+  deliberately puts a comment banner *above* the preamble, because the parser strips comments
+  and blank lines before deciding which line is first, so a highlighter must not anchor the
+  clause to line 1. It also declares a command field named `language`, since the word is not
+  reserved and stays legal as an identifier mid-line — a highlighter colours it as a keyword
+  regardless, which is Section 1 of `spec/keiro-dsl-language-model.md` working as designed.
+  The `context`/`module`/`layout` header and the small `aggregate` beneath let both suites
+  confirm a preamble leaves the rest of the file tokenizing normally. It backs the
+  reconciliation recorded in
+  `docs/plans/10-highlight-the-language-keiro-dsl-version-preamble.md`.
 
 ## Rules for consumers
 
