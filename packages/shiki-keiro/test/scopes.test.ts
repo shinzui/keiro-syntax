@@ -197,6 +197,14 @@ const nominalBindings = readFileSync(
   resolve(repoRoot, 'corpus/consumer-nominal-bindings.keiro'),
   'utf8',
 )
+const scalarExpressions = readFileSync(
+  resolve(repoRoot, 'corpus/aggregate-scalar-expressions.keiro'),
+  'utf8',
+)
+const implementationHole = readFileSync(
+  resolve(repoRoot, 'corpus/transition-implementation-hole.keiro'),
+  'utf8',
+)
 
 test('comments get the comment scope', () => {
   expectScope(sampler, '# keiro-dsl lexical sampler — comments, strings, numbers, durations, versions', 'comment.line.number-sign.keiro')
@@ -564,6 +572,112 @@ test('a nominal binding does not disturb the aggregate below it', () => {
   expectScope(nominalBindings, ':=', 'keyword.operator.keiro')
 })
 
+// --- The typed scalar expression language (keiro-dsl 8b0f55b) ----------------
+//
+// Under `language keiro-dsl 2` an aggregate transition's `guard` and `write` clauses are a real
+// expression language: values reached through the `reg.` and `cmd.` roots, arithmetic with
+// `+`, `-`, and `*`, and literals as operands. The same commit added the `Integer` type
+// spelling and the `implementation hole` clause, which hands one transition's behaviour to
+// consumer-written Haskell. Four spellings are new to the grammar: `Integer`, `implementation`,
+// `reg`, and `cmd`, plus the operator `*`.
+
+test('the Integer type spelling gets support.type', () => {
+  // `Integer` is the eleventh spelling of `pMappedTypeExpr`, which since keiro-dsl da09736 is
+  // also an aggregate register's and an aggregate command field's type slot. Both occur in this
+  // file; the register one comes first.
+  expectWholeToken(scalarExpressions, 'Integer', 'support.type.keiro', 'balance Integer = 0')
+  expectWholeToken(
+    scalarExpressions,
+    'Integer',
+    'support.type.keiro',
+    'balance:Integer requested:Natural',
+  )
+})
+
+test('the scalar expression roots get keyword.control', () => {
+  // Whole-token assertions: the rule must claim `reg` and `cmd` and stop at the `.`, which is
+  // uncoloured punctuation in both packages.
+  expectWholeToken(scalarExpressions, 'cmd', 'keyword.control.keiro', 'guard cmd.balance')
+  expectWholeToken(scalarExpressions, 'reg', 'keyword.control.keiro', 'guard cmd.balance')
+})
+
+test('a root without a following dot is not a keyword', () => {
+  // The regression guard for the whole follow-`.` decision. `cmd` is a user-chosen wire word in
+  // five corpus files (`id CommandId prefix=cmd`), and an unconditional rule would recolour
+  // every one of them. Asserted against the oldest corpus file so a future "simplification" of
+  // the rule fails here rather than silently restyling verbatim upstream samples.
+  const scopes = scopesOf(reservation, 'cmd')
+  expect(scopes, 'the wire word `cmd` was not found in corpus/reservation.keiro').not.toBeNull()
+  expect(scopes!.filter((s) => KEYWORDISH_SCOPES.has(s))).toEqual([])
+})
+
+test('the reserved word regs is not eaten by the reg root rule', () => {
+  // `\b`-style boundaries on both sides: `#scalar-roots` requires a `.` next, which `regs` does
+  // not have, so `regs` still reaches #control-keywords whole.
+  expectWholeToken(scalarExpressions, 'regs', 'keyword.control.keiro')
+})
+
+test('the arithmetic operators get keyword.operator', () => {
+  expectScope(scalarExpressions, '*', 'keyword.operator.keiro')
+  expectScope(scalarExpressions, '+', 'keyword.operator.keiro')
+})
+
+test('a negative operand is one whole number with an uncoloured sign', () => {
+  // Section 2 of the spec: the digits take the Number class and the lone `-` is left as
+  // punctuation, in an expression operand exactly as in a register initializer.
+  expectWholeToken(scalarExpressions, '100', 'constant.numeric.keiro', '>= -100')
+})
+
+test('a scalar transition still highlights its surrounding clauses', () => {
+  expectScope(scalarExpressions, 'guard', 'keyword.control.keiro')
+  expectScope(scalarExpressions, 'write', 'keyword.control.keiro')
+  expectScope(scalarExpressions, 'goto', 'keyword.control.keiro')
+  expectScope(scalarExpressions, ':=', 'keyword.operator.keiro')
+  expectScope(scalarExpressions, 'Natural', 'support.type.keiro')
+})
+
+test('the implementation hole clause is a control keyword plus a language constant', () => {
+  // Only `implementation` is new. `hole` has been a constant in both packages since plan 4, as
+  // the `derive "..." hole` and `resolve ... hole` marker; this clause is its third parser site.
+  expectWholeToken(
+    implementationHole,
+    'implementation',
+    'keyword.control.keiro',
+    'implementation hole',
+  )
+  expectWholeToken(implementationHole, 'hole', 'constant.language.keiro', 'implementation hole')
+})
+
+test('an implementation hole does not disturb the aggregate around it', () => {
+  expectScope(implementationHole, 'aggregate', 'keyword.declaration.keiro')
+  expectScope(implementationHole, 'states', 'keyword.control.keiro')
+  expectScope(implementationHole, 'emit', 'keyword.declaration.keiro')
+  expectScope(implementationHole, 'goto', 'keyword.control.keiro')
+  expectScope(implementationHole, 'guard', 'keyword.control.keiro')
+  expectScope(implementationHole, ':=', 'keyword.operator.keiro')
+})
+
+test('the scalar literal shapes need no rule of their own', () => {
+  // A qualified enum literal is an identifier, a `.`, and an identifier — lexically the same as
+  // the dotted references the language has always had — and an id literal is an identifier and
+  // a parenthesised string. Neither gains a scope; what must hold is that the string inside the
+  // id literal is still a String and that the `==` before it is still an operator.
+  expectScope(implementationHole, '==', 'keyword.operator.keiro')
+  expectWholeToken(
+    implementationHole,
+    'tkt_01h455vb4pex5vsknk084sn02q',
+    'string.quoted.double.keiro',
+  )
+})
+
+test('scalar keywords inside a comment stay a comment', () => {
+  expectScope(
+    implementationHole,
+    '# named in this comment — implementation, guard, write, Integer, reg, cmd — must stay Comment,',
+    'comment.line.number-sign.keiro',
+  )
+})
+
 // --- Spec word-list coverage guards -----------------------------------------
 //
 // `retiring` joined the parser's `reservedWords` in keiro-dsl 75286d7 without changing how
@@ -583,13 +697,19 @@ test('the spec Section 3 list holds the parser 72 reserved words', () => {
   expect(reservedWordsFromSpec().length).toBe(72)
 })
 
-test('the spec Section 4 lists 99 bare and 32 dashed contextual keywords', () => {
+test('the spec Section 4 lists 100 bare and 32 dashed contextual keywords', () => {
   // 96 -> 97 and 31 -> 32 at keiro-dsl 4523b52, which added the version preamble's `language`
   // (bare) and `keiro-dsl` (dashed). 97 -> 99 at keiro-dsl fcd6748, which added the nominal
-  // binding words `nominal` and `using`, both bare. Section 3 is unchanged throughout: none
-  // of those four words is reserved.
+  // binding words `nominal` and `using`, both bare. 99 -> 100 at keiro-dsl 8b0f55b, which added
+  // the transition clause word `implementation`. Section 3 is unchanged throughout: none of
+  // those five words is reserved.
+  //
+  // The scalar expression roots `reg` and `cmd` are deliberately NOT in the bare grid, even
+  // though both packages colour them: this guard probes each grid word in a one-word document,
+  // where a root correctly is not a keyword because no `.` follows it. They are covered by the
+  // hand-named assertions above instead.
   const { bare, dashed } = contextualWordsFromSpec()
-  expect(bare.length).toBe(99)
+  expect(bare.length).toBe(100)
   expect(dashed.length).toBe(32)
 })
 

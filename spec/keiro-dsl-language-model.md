@@ -57,6 +57,14 @@ lines for `mapped nominal …` or for any line containing the word `using` and r
 with a `LanguageFeatureRequiresVersion` diagnostic below version 2. An editor must still
 tokenize such a file while its author is fixing the version line.)
 
+Since keiro-dsl commit `8b0f55b` that same scan — renamed `requiresSuccessorSyntax` — fires on
+four more things, all of them from the **scalar expression sublanguage** described in Section
+4: the word `Integer` anywhere on a significant line, and the substrings `implementation hole`,
+`reg.`, and `cmd.`. Version 2 is therefore the contract for that sublanguage as well as for
+nominal bindings. Nothing about this changes what a highlighter does. A version-1 file that
+merely names `Integer` is now a parse failure and is still an ordinary thing to colour, for the
+same reason as above: an editor tokenizes a file while its author is fixing the diagnostic.
+
 **Authoritative source.** Every fact in this document is confirmed against the keiro-dsl
 parser, a Haskell file using the `megaparsec` library:
 `/Users/shinzui/Keikaku/bokuno/keiro/keiro-dsl/src/Keiro/Dsl/Parser.hs`. The reserved-keyword
@@ -106,16 +114,22 @@ class (Section 6):
 - **Plain decimal integers** — `[0-9]+` (e.g. `0`, `1`, `10`, `2024`). The version in the
   `language keiro-dsl 1` preamble (Section 1) is one of these — parser
   `lexeme (some digitChar)` — and takes the Number class like any other integer; there is no
-  separate "version" class for it. Two slots admit a
+  separate "version" class for it. Three slots admit a
   leading `-` sign. A **register initializer** takes `-?[0-9]+(\.[0-9]+)?` — signed, and
   optionally fractional since keiro-dsl commit `da09736` widened `signedDecimalText` (e.g.
   `count Int = -1`, `fractional Natural = -1.5`). The default value of a mapped-type wire
   field's `on-missing=` clause (Section 4) takes `-?[0-9]+` only; its parser `integerLiteral`
-  is a separate rule and admits no fractional part. In both slots the `-` is a *separate*
+  is a separate rule and admits no fractional part. Since keiro-dsl commit `8b0f55b` that same
+  `integerLiteral` rule is also an **operand of a scalar expression** in an aggregate
+  transition's `guard` or `write` clause (Section 4), so `guard cmd.balance >= -100` is the
+  third slot. In all three the `-` is a *separate*
   token: the digits take the **Number** class and the lone `-` is left as **uncolored
   punctuation**, because Section 5's operator list contains `-->`, `--`, and `->` but no bare
-  `-`, and claiming one would put a color on the first character of every transition arrow.
-  Both packages behave this way today.
+  `-`, and claiming one would put a color on the first character of every transition arrow —
+  and on the dash inside every wire word (`hospital-capacity`, `partial-divert`). That is also
+  why the **subtraction** operator of a scalar expression is uncolored: `reg.balance - 1` shows
+  a colored register root, an uncolored `-`, and a colored `1`. Both packages behave this way
+  today.
 - **Fractional decimals** — a digit run, a `.`, and a digit run, `[0-9]+\.[0-9]+`. Two homes:
   a backoff `multiplier=1.5` (parser `decimalText`), and — since `da09736` — a register
   initializer (parser `signedDecimalText`, above), which is now the commoner of the two.
@@ -259,7 +273,7 @@ via          saga        stream      target      projections on
 advance      schedule    timer       fire        fireAt      source
 key          value       run         signal      query       project
 result       ordering    backoff     outboxId    messageId   idempotencyKey
-discriminator             schemaVersion           derive     of
+discriminator             schemaVersion           derive     of         implementation
 after        required    stable      strategy    policy      prefix
 kind         logical     physical    dlq         table       maxRetries
 maxAttempts  delay       readModel   field       to          envelope
@@ -276,9 +290,11 @@ structural   tag         type        union       using
 The last three-and-a-bit rows — `as` through `using` — are the **mapped type declaration**
 vocabulary, described in its own subsection below. They are listed here in alphabetical order
 rather than in the order they appear in a declaration, because this grid is a flat membership
-list and nothing else in it is ordered either. `nominal` and `using` are the two most recent
-arrivals (keiro-dsl commit `fcd6748`); they belong to the **nominal binding** forms described
-at the end of that subsection.
+list and nothing else in it is ordered either. `nominal` and `using` (keiro-dsl commit
+`fcd6748`) belong to the **nominal binding** forms described at the end of that subsection.
+`implementation` is the most recent arrival (keiro-dsl commit `8b0f55b`) and belongs to none of
+the mapped-type families: it opens an aggregate transition's `implementation hole` clause,
+described in "The scalar expression sublanguage" below.
 
 ### Dashed contextual keywords (match-before-bare-words)
 
@@ -440,11 +456,14 @@ where each arm's `: Type` payload is optional. A `mapped opaque X { … }` block
 
 Four facts a highlighter implementer needs:
 
-- **The type slot accepts exactly ten spellings** (parser `pMappedTypeExpr`): `Text`, `Int`,
-  `Bool`, `Natural`, `Time` — with `UTCTime` as an accepted alias for `Time` — `Json`, the
-  one-argument constructors `Optional`, `List`, `Map`, and a bare identifier naming another
-  mapped type. All nine literal spellings are **Primitive types** in Section 6, alongside the
-  pre-existing `Int` and `Text`. Note that `Map` (capital) is a primitive type while the
+- **The type slot accepts exactly eleven spellings** (parser `pMappedTypeExpr`): `Text`, `Int`,
+  `Integer`, `Bool`, `Natural`, `Time` — with `UTCTime` as an accepted alias for `Time` —
+  `Json`, the one-argument constructors `Optional`, `List`, `Map`, and a bare identifier naming
+  another mapped type. All ten literal spellings are **Primitive types** in Section 6, alongside
+  the pre-existing `Int` and `Text`. `Integer` is the newest (keiro-dsl commit `8b0f55b`, which
+  added it to both branches of `pMappedTypeExpr`); it is a distinct spelling from `Int`, not an
+  alias for it — upstream uses `Int` for machine integers and `Integer` for exact
+  arbitrary-precision ones. Note that `Map` (capital) is a primitive type while the
   reserved `map` (lowercase, Section 3) is a control keyword: they are different words, and
   both packages match case-sensitively. A one-argument constructor's argument may be written
   bare (`Optional Text`) or parenthesized (`Optional(Text)`); the parentheses are **uncolored
@@ -452,7 +471,7 @@ Four facts a highlighter implementer needs:
 - **That same type slot is no longer confined to a `mapped` declaration.** keiro-dsl commit
   `da09736` made `pMappedTypeExpr` the type slot of an **aggregate register** (`pRegDecl`,
   which read a bare `ident` before) and of an **aggregate command/event field**
-  (`pAggregateField`, likewise). So all ten spellings now appear in the two most-written
+  (`pAggregateField`, likewise). So all eleven spellings now appear in the two most-written
   slots in the language:
 
   ```text
@@ -582,6 +601,91 @@ The parser is stricter about `using` than about any other unreserved word — it
 not just at the start of a line as with `language` — but that too is a parser rule, and both
 packages color the word unconditionally.
 
+### The scalar expression sublanguage
+
+Since keiro-dsl commit `8b0f55b` a source declaring `language keiro-dsl 2` writes the `guard`
+and `write` clauses of an **aggregate transition** in a real expression language. Before that
+commit those clauses could only compare or copy whole values and every arithmetic character was
+a hand-written parse error; now they read values through two named roots, do arithmetic, and
+take literals as operands. A whole transition:
+
+```text
+  Open -- Adjust -->
+    guard cmd.balance + reg.balance >= -100
+      && reg.reserved + cmd.requested <= reg.capacity
+      && reg.status == OrderStatus.Draft
+      && reg.orderId == OrderId("ord_01h455vb4pex5vsknk084sn02q")
+    write balance := reg.balance + cmd.balance * 2
+    write label := "settled"
+    emit Adjusted
+    goto Closed
+```
+
+Six facts a highlighter implementer needs.
+
+- **`implementation hole` is a new transition clause, and only its first word is new.** It
+  replaces the whole body of a transition — the consumer writes that transition's behavior in
+  Haskell instead, against a generated typed signature — and it is a peer of `guard`, `write`,
+  `emit`, and `goto` (parser `pClause`, whose first alternative under version 2 is
+  `keyword "implementation" *> keyword "hole"`). `implementation` is therefore a **Control /
+  section keyword** in Section 6, like the four clause words it sits beside. `hole` keeps the
+  **Language constant** class it has had since plan 4, where it entered as the `derive "…" hole`
+  marker of a contract emitter and the `resolve … hole` source of a router; this clause is
+  simply its third parser site. So the clause renders as a keyword followed by a constant. Note
+  that `HOLE` (capitalized, reserved, Section 3) is a *different* word in a different place, and
+  both packages match case-sensitively.
+
+- **`reg` and `cmd` are the two expression roots, and both packages color them only when the
+  very next character is a `.`.** `reg.balance` reads a register — a value the aggregate stores
+  between commands — and `cmd.balance` reads a field of the command being handled. They read
+  like the dotted-reference roots `input.`, `timer.`, and `source.`, which have been
+  unconditional keywords in this section since plan 4, and they take the same **Control /
+  section keyword** class. The follow-`.` condition is what is different, and there are two
+  reasons for it. The parser gives these words meaning *only* in that position — `pScalarPath`
+  reads an identifier and its dotted tail and then asks whether the head was `reg` or `cmd`, so
+  a register genuinely named `reg` still parses — and, more concretely, `cmd` is already a
+  common **wire word**: `id CommandId prefix=cmd` appears in five files of this repository's
+  corpus, and an unconditional rule would recolor every one of them. A condition on the
+  *following character* is the same device Section 4's implementer note already describes for
+  the `-\@!` guards on `on`, `binding`, `dedupe`, `shape`, and `dispatch`; it is not the kind of
+  look-*behind* Section 6 marks optional, so these rules are mandatory like any other keyword
+  rule. In TextMate the rule is `(?<![A-Za-z0-9_])(?:reg|cmd)(?=\.)`; in Vim it is
+  `syntax match … /\<\%(reg\|cmd\)\>\.\@=/`, and `\>` is what keeps the reserved word `regs`
+  out of it.
+
+- **The arithmetic operators are `+`, `-`, and `*`.** `+` was already in Section 5 (it adds a
+  duration to a time in a process timer) and `*` is new there. A bare `-` is deliberately
+  **not** an operator in either package — Section 2's numbers subsection gives the two reasons,
+  the transition arrows `-->`/`--` and the dashes inside wire words — so subtraction shows as
+  uncolored punctuation between two colored operands. `/` and `%` are matched by the parser only
+  to produce the diagnostic "aggregate arithmetic operator '/' is unsupported"; they are not
+  part of the language and neither package claims them.
+
+- **Every operand shape is already covered.** A quoted operand is an ordinary **String**
+  (Section 2); an integral operand is an ordinary **Number**, signed by the same
+  `integerLiteral` rule as a wire field's `on-missing=` default; `true` and `false` are already
+  **Language constants**. Two operand shapes are new to the language and still need no rule: a
+  **qualified enum literal** `OrderStatus.Draft` is an identifier, a `.`, and an identifier —
+  lexically indistinguishable from the dotted references `input.hospitalId` and `timer.id` the
+  language has always had — and an **id literal** `OrderId("ord_01h4…")` is an identifier, a
+  parenthesized string, and nothing else, with the parentheses left as uncolored punctuation
+  exactly as in `Optional(Text)`. Do not add a rule that colors a capitalized identifier before
+  a `.`: it would also color the module prefixes of `module Acme.Services`, which are plain
+  today.
+
+- **The collection vocabulary must not be highlighted.** The parser matches `[`, `{`, `keys`,
+  `values`, `any`, and `all` as terms, and `in` and `not in` as operators, purely in order to
+  *reject* them with `CollectionExpressionUnsupported: collection expressions are reserved for
+  plan 166`. No source containing them parses, so none of them is a word of the language yet
+  and none is listed in this section. (`in` is unaffected: it has been a curated keyword since
+  plan 4 for a process node's `in`/`out` clauses, and stays exactly as it is.) When a later
+  keiro-dsl release makes collection expressions real, the sync for that range adds them.
+
+- **A transition may carry both `implementation hole` and a `guard`, and it still parses.**
+  Upstream's own test asserts that pairing produces a *semantic* diagnostic,
+  `AggregateTransitionOwnershipConflict`, from a source the parser accepted. As with the
+  aggregate type slots above, a highlighter colors what the semantic pass will later reject.
+
 
 ## Section 5 — Operators and punctuation
 
@@ -589,7 +693,7 @@ The operators and punctuation, listed **longest-match first** — a highlighter 
 longer ones before the shorter ones (e.g. `-->` before `->` before `-`, and `==` before `=`):
 
 ```text
--->   --   ->   :=   =>   ==   !=   <=   >=   <>   &&   ||   <   >   +   =   @   !   :   ;   .   ,
+-->   --   ->   :=   =>   ==   !=   <=   >=   <>   &&   ||   <   >   +   *   =   @   !   :   ;   .   ,
 ```
 
 Roles, briefly:
@@ -601,7 +705,11 @@ Roles, briefly:
 - `==`, `!=`, `<`, `>`, `<=`, `>=` — comparisons in guard expressions.
 - `&&`, `||` — boolean operators in guards.
 - `<>` — string concatenation in id expressions.
-- `+` — adds a duration to a time (`fireAt input.observedAt + 5m`).
+- `+` — adds a duration to a time (`fireAt input.observedAt + 5m`), and adds two operands of an
+  aggregate scalar expression (`write balance := reg.balance + cmd.balance`).
+- `*` — multiplies two operands of an aggregate scalar expression (`reg.balance * 2`). The
+  matching subtraction operator is written `-`, which neither package colors — see the numbers
+  subsection of Section 2 for why.
 - `=` — assignment in `prefix=...`, `kind=...`, register initializers, and enum constructors.
 - `@` — the aggregate-reference separator (`Hospital@input.hospitalId`).
 - `!` — marks a terminal state (`Expired!`).
@@ -622,10 +730,10 @@ to. Both packages must classify the identical literal words into the keyword cla
 | Token class | Members / pattern | TextMate scope | Vim group |
 |---|---|---|---|
 | Declaration introducer | the subset of reserved + contextual words that begin a top-level item or node: `language` (the version preamble, which begins the only clause outside the spec body — see Section 4), `context`, `id`, `enum`, `rule`, `mapped`, `aggregate`, `process`, `router`, `contract`, `intake`, `emit`, `publisher`, `workqueue`, `dispatch`, `readmodel`, `workflow`, `operation` | `keyword.declaration.keiro` | `Keyword` |
-| Control / section keyword | all other reserved keywords (Section 3) **and** all curated contextual keywords (Section 4) *except the words the Modifier and Language-constant rows below claim*, e.g. `regs`, `states`, `command`, `event`, `wire`, `guard`, `write`, `goto`, `snapshot`, `module`, `layout`, `resolve`, `dispatch-each`, `read-model`, `category`, `persist`, `patch`, `continueAsNew`, `columns`, `feed`, `scope`, `shape`, `on`, `advance`, `schedule`, `timer`, `bind`, `accept`, `map`, `step`, `await`, the version preamble's dialect name `keiro-dsl` (dashed — see Section 4), and the mapped-type vocabulary `haskell`, `package`, `type`, `binding`, `binding-version`, `canonical-type`, `codec`, `fixtures`, `initial`, `object`, `constructor`, `string`, `tagged-object`, `tag`, `contents`, `as`, `unknown-fields`, `reject`, `ignore`, `on-missing`, and the nominal-binding clause word `using` (which attaches a consumer binding block to an `id` or `enum` declaration — see Section 4), ... | `keyword.control.keiro` | `Statement` |
+| Control / section keyword | all other reserved keywords (Section 3) **and** all curated contextual keywords (Section 4) *except the words the Modifier and Language-constant rows below claim*, e.g. `regs`, `states`, `command`, `event`, `wire`, `guard`, `write`, `goto`, `snapshot`, `module`, `layout`, `resolve`, `dispatch-each`, `read-model`, `category`, `persist`, `patch`, `continueAsNew`, `columns`, `feed`, `scope`, `shape`, `on`, `advance`, `schedule`, `timer`, `bind`, `accept`, `map`, `step`, `await`, the version preamble's dialect name `keiro-dsl` (dashed — see Section 4), and the mapped-type vocabulary `haskell`, `package`, `type`, `binding`, `binding-version`, `canonical-type`, `codec`, `fixtures`, `initial`, `object`, `constructor`, `string`, `tagged-object`, `tag`, `contents`, `as`, `unknown-fields`, `reject`, `ignore`, `on-missing`, and the nominal-binding clause word `using` (which attaches a consumer binding block to an `id` or `enum` declaration — see Section 4), the transition clause word `implementation` (of `implementation hole`; its second word `hole` is a Language constant, one row down), and the two scalar-expression roots `reg` and `cmd` — which, uniquely in this table, are matched **only when the next character is a `.`**, so `reg.balance` is a keyword and the wire word in `id CommandId prefix=cmd` is not (see Section 4), ... | `keyword.control.keiro` | `Statement` |
 | Modifier | `deprecated`, `retiring` (the two mutually exclusive event prefixes — see Section 3), `upcast`, `from`, `consistency`, `required`, `stable`, `strategy`, `via`, `policy`, `prefix`, `kind`, the mapped-type words `structural`, `opaque`, `nominal`, `record`, `union` (which select the family and shape of a `mapped` declaration) and `optional` (`required`'s partner on a wire field — see Section 4), and the dashed `replay-only` (the transition prefix — see Section 4; being dashed it must be matched before bare words) | `storage.modifier.keiro` | `StorageClass` |
-| Language constant | `true`, `false`, `null` (the `on-missing=null` sentinel — see Section 4), `HOLE`, `placeholder`, `skip`, `hole` | `constant.language.keiro` (give `true` / `false` the more specific `constant.language.boolean.keiro`; `null` takes the general scope) | `Boolean` for `true` / `false`, else `Constant` |
-| Primitive type | `Bool`, `Int`, `Text`, `Time`, `Id`, `Maybe`, `typeid`, `text`, `int`, and the mapped-type spellings `Natural`, `UTCTime` (an alias for `Time`), `Json`, `Optional`, `List`, `Map` (see Section 4 — `Map` capitalized is a type, the reserved lowercase `map` is a control keyword, and both packages match case-sensitively). These are matched **unconditionally, everywhere**, not only inside a `mapped` declaration: since keiro-dsl `da09736` the same type grammar is also an aggregate register's and an aggregate command/event field's type slot (Section 4) | `support.type.keiro` | `Type` |
+| Language constant | `true`, `false`, `null` (the `on-missing=null` sentinel — see Section 4), `HOLE`, `placeholder`, `skip`, `hole` (three parser sites: a contract emitter's `derive "…" hole`, a router's `resolve … hole`, and — since keiro-dsl `8b0f55b` — the second word of a transition's `implementation hole` clause, whose first word is a Control keyword one row up) | `constant.language.keiro` (give `true` / `false` the more specific `constant.language.boolean.keiro`; `null` takes the general scope) | `Boolean` for `true` / `false`, else `Constant` |
+| Primitive type | `Bool`, `Int`, `Integer` (a distinct spelling from `Int`, not an alias — keiro-dsl `8b0f55b`), `Text`, `Time`, `Id`, `Maybe`, `typeid`, `text`, `int`, and the mapped-type spellings `Natural`, `UTCTime` (an alias for `Time`), `Json`, `Optional`, `List`, `Map` (see Section 4 — `Map` capitalized is a type, the reserved lowercase `map` is a control keyword, and both packages match case-sensitively). These are matched **unconditionally, everywhere**, not only inside a `mapped` declaration: since keiro-dsl `da09736` the same type grammar is also an aggregate register's and an aggregate command/event field's type slot (Section 4) | `support.type.keiro` | `Type` |
 | Declaration-site type name | a CamelCase plain identifier appearing immediately after a declaration introducer that names a type (`enum X`, `aggregate X`, `contract X`, `command X`, `event X`, `id X`, `workflow X`, `operation X`, `process X`) or immediately after a `mapped` declaration's family or shape word (`record X`, `union X`, `opaque X`, `nominal X`; `mapped structural enum X` is already covered by the `enum X` case) | `entity.name.type.keiro` | `Type` |
 | String | `"..."` (Section 2) | `string.quoted.double.keiro` | `String` |
 | String escape | one of `\"`, `\\`, `\n`, `\t`, `\r` inside a string (Section 2) | `constant.character.escape.keiro` | `SpecialChar` |

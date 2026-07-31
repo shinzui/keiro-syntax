@@ -34,7 +34,11 @@ syntax keyword keiroConstant HOLE placeholder skip hole null
 " --- Primitive types ------------------------------------------------------
 " `Map` (capitalized) is a type; the reserved lowercase `map` is a control word below.
 " 'syntax keyword' is case sensitive by default, so the two never collide.
-syntax keyword keiroType Bool Int Text Time UTCTime Id Maybe Natural Json Optional List Map
+" `Integer` is the eleventh spelling of the mapped type expression (keiro-dsl 8b0f55b) and a
+" distinct type from `Int`, not an alias: upstream uses `Int` for machine integers and
+" `Integer` for exact arbitrary-precision ones. 'syntax keyword' matches whole words, so `Int`
+" never claims the head of `Integer`.
+syntax keyword keiroType Bool Int Integer Text Time UTCTime Id Maybe Natural Json Optional List Map
 syntax keyword keiroType typeid text int
 
 " --- Declaration-introducer keywords --------------------------------------
@@ -95,6 +99,12 @@ syntax keyword keiroStatement constructor string tag contents as reject ignore
 " already began — like `wire` inside a `mapped structural` block — so it is a statement, not a
 " modifier. No '-\@!' guard: it is neither dashed nor the prefix of a dashed word.
 syntax keyword keiroStatement using
+" `implementation` opens the transition clause `implementation hole`, which hands one
+" transition's behaviour to consumer-written Haskell. It is a peer of `guard`, `write`, `emit`,
+" and `goto`, so it is a statement. Its second word `hole` is already in the constant list
+" above — it has been there since plan 4 as the `derive "..." hole` and `resolve ... hole`
+" marker — so the clause reads as a statement followed by a constant.
+syntax keyword keiroStatement implementation
 
 " Dashed keywords need 'match' because '-' is not a keyword character.
 syntax match keiroStatement /\<\%(status-map\|dispatch-id\|fired-event-id\)\>/
@@ -128,6 +138,16 @@ syntax match keiroStatement /\<binding\>-\@!/
 syntax match keiroStatement /\<dedupe\>-\@!/
 syntax match keiroStatement /\<shape\>-\@!/
 
+" The two roots of a version-2 scalar expression: `reg.balance` reads a register, `cmd.balance`
+" reads a field of the command being handled. They are the same class as the older dotted roots
+" `input.` and `timer.`, but unlike those they are matched ONLY when a '.' follows. Two reasons,
+" both in Section 4 of spec/keiro-dsl-language-model.md: upstream's `pScalarPath` gives these
+" words meaning only as the head of a dotted path (a register named `reg` still parses), and
+" `cmd` is already a wire word in five corpus files (`id CommandId prefix=cmd`), which an
+" unconditional rule would recolour. '\>' keeps the reserved word `regs` out of it; '\.\@='
+" is a zero-width lookahead for the dot.
+syntax match keiroStatement /\<\%(reg\|cmd\)\>\.\@=/
+
 " --- Operators (longest alternatives first) -------------------------------
 syntax match keiroOperator /-->/
 syntax match keiroOperator /->/
@@ -138,7 +158,12 @@ syntax match keiroOperator /[=!<>]=/
 syntax match keiroOperator /<>/
 syntax match keiroOperator /&&/
 syntax match keiroOperator /||/
-syntax match keiroOperator /[<>@!+]/
+" `*` multiplies two operands of a version-2 scalar expression (`write x := reg.x * 2`). The
+" matching subtraction operator is a bare `-`, which this file deliberately does not claim:
+" Section 5 of spec/keiro-dsl-language-model.md lists `-->`, `--`, and `->` but no bare `-`, and
+" a rule for one would colour the first character of every transition arrow and the dash inside
+" every wire word (`hospital-capacity`).
+syntax match keiroOperator /[<>@!+*]/
 
 " --- Declaration-site type name (optional refinement) ---------------------
 " `record` / `union` / `opaque` / `nominal` are a mapped declaration's shape and family words,

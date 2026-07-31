@@ -71,6 +71,29 @@ local function expect_uniform(word, want, anchor)
   print(string.format('ok   %q -> %s (all %d characters)', word, want, #word))
 end
 
+-- Assert that the character `offset` positions into `anchor` carries NO highlight group at all.
+-- This is the negative form neither expect() nor expect_uniform() can express: both report a
+-- group, and "" is exactly what they treat as failure. Needed for the wire word in
+-- `id CommandId prefix=cmd`, which the scalar-root rule must leave alone because no '.' follows
+-- it — see the reg/cmd match in syntax/keiro.vim.
+local function expect_no_group(anchor, offset)
+  checks = checks + 1
+  local lnum, col = locate(anchor)
+  if not lnum then
+    failures = failures + 1
+    print(string.format('MISSING anchor %q in current buffer', anchor))
+    return
+  end
+  local got = group_at(lnum, col + offset)
+  if got ~= '' then
+    failures = failures + 1
+    print(string.format('FAIL %q at offset %d: want no highlight group, got %s — a rule is '
+      .. 'claiming text that must stay plain', anchor, offset, got))
+  else
+    print(string.format('ok   %q at offset %d -> (no group)', anchor, offset))
+  end
+end
+
 local function open(relpath)
   vim.cmd('silent! edit! ' .. repo_root .. '/' .. relpath)
   vim.cmd('syntax sync fromstart')
@@ -329,6 +352,75 @@ expect('guard', 'keiroStatement')
 expect('goto', 'keiroStatement')
 expect(':=', 'keiroOperator')
 
+-- The typed scalar expression language (keiro-dsl 8b0f55b). Under `language keiro-dsl 2` an
+-- aggregate transition's `guard` and `write` clauses are a real expression language: values
+-- reached through the `reg.` and `cmd.` roots, arithmetic with `+`, `-`, and `*`, and literals
+-- as operands. The same commit added the `Integer` type spelling and the `implementation hole`
+-- clause. Four spellings are new to keiro.vim — `Integer`, `implementation`, `reg`, `cmd` —
+-- plus the operator `*`.
+--
+-- This file has no comments (it is a verbatim upstream fixture), so bare anchors are safe; each
+-- one still begins with the token under test, because expect() reads the group at the anchor's
+-- first character.
+open('corpus/aggregate-scalar-expressions.keiro')
+expect('Integer = 0', 'keiroType')
+expect('Integer requested:Natural', 'keiroType')
+expect('Natural = 0', 'keiroType')
+-- The two expression roots, whole-token: the rule must claim `reg`/`cmd` and stop at the '.',
+-- which is uncoloured punctuation. expect() alone reads only the first character and would pass
+-- even if the rule leaked into the dotted tail.
+expect('cmd.balance', 'keiroStatement')
+expect('reg.balance', 'keiroStatement')
+expect_uniform('cmd', 'keiroStatement', 'guard cmd.balance')
+expect_uniform('reg', 'keiroStatement', 'guard cmd.balance')
+-- The reserved word `regs` must survive the new `reg` rule: '\>' in the match requires a word
+-- boundary, and `regs` has none after `reg`.
+expect_uniform('regs', 'keiroStatement')
+expect('*', 'keiroOperator')
+expect('+', 'keiroOperator')
+-- A negative operand is one whole number token with an uncoloured sign, exactly as a signed
+-- register initializer is (Section 2 of spec/keiro-dsl-language-model.md).
+expect_uniform('100', 'keiroNumber', '>= -100')
+-- The clauses around the new expressions still tokenize.
+expect('guard cmd.balance', 'keiroStatement')
+expect('write balance', 'keiroStatement')
+expect(':=', 'keiroOperator')
+expect('goto Closed', 'keiroStatement')
+
+-- The `implementation hole` clause, and the two literal shapes no upstream fixture uses. This
+-- file's leading comment deliberately names the new keywords, so the anchors below are chosen
+-- so expect()/expect_uniform() cannot land on it: the comment says "implementation ownership",
+-- never "implementation hole", and "Integer, reg, cmd" never "reserved Integer".
+open('corpus/transition-implementation-hole.keiro')
+expect('# keiro-dsl transition implementation', 'keiroComment')
+expect('# named in this comment', 'keiroComment')
+expect('implementation hole', 'keiroStatement')
+expect_uniform('implementation', 'keiroStatement', 'implementation hole')
+-- Only the first word is new. `hole` has been a constant in keiro.vim since plan 4, as the
+-- `derive "..." hole` and `resolve ... hole` marker; this clause is its third parser site.
+expect_uniform('hole', 'keiroConstant', 'implementation hole')
+expect_uniform('Integer', 'keiroType', 'reserved Integer')
+-- The literal shapes need no rule of their own: a qualified enum literal is an identifier, a
+-- '.', and an identifier, and an id literal is an identifier and a parenthesised string. What
+-- must hold is that the string inside the id literal is still a String.
+expect('"tkt_01h455vb4pex5vsknk084sn02q"', 'keiroString')
+expect('==', 'keiroOperator')
+-- The aggregate around the hole clause is undisturbed.
+expect('aggregate TicketDesk', 'keiroKeyword')
+expect('states Idle', 'keiroStatement')
+expect('emit TicketHeld', 'keiroKeyword')
+expect('goto Holding', 'keiroStatement')
+expect('guard reg.reserved', 'keiroStatement')
+expect(':=', 'keiroOperator')
+
+-- The regression guard for the whole follow-'.' decision on the two roots. `cmd` is a
+-- user-chosen wire word in five corpus files (`id CommandId prefix=cmd`), and an unconditional
+-- rule would recolour every one of them. Asserted against the oldest corpus file, so a future
+-- "simplification" of the rule fails here rather than silently restyling verbatim upstream
+-- samples. Offset 7 is the 'c' of `cmd` within `prefix=cmd`.
+open('corpus/reservation.keiro')
+expect_no_group('prefix=cmd', 7)
+
 -- Spec word-list coverage guards.
 --
 -- `retiring` joined the parser's `reservedWords` in keiro-dsl 75286d7 without changing how the
@@ -445,10 +537,16 @@ local bare, dashed = contextual[1], contextual[2]
 
 -- 96 -> 97 and 31 -> 32 at keiro-dsl 4523b52, which added the version preamble's `language`
 -- (bare) and `keiro-dsl` (dashed). 97 -> 99 at keiro-dsl fcd6748, which added the nominal
--- binding words `nominal` and `using`, both bare. Section 3 is unchanged throughout: none of
--- those four words is reserved.
+-- binding words `nominal` and `using`, both bare. 99 -> 100 at keiro-dsl 8b0f55b, which added
+-- the transition clause word `implementation`. Section 3 is unchanged throughout: none of those
+-- five words is reserved.
+--
+-- The scalar expression roots `reg` and `cmd` are deliberately NOT in the bare grid, even
+-- though keiro.vim colours them: expect_all_keywordish probes each grid word in a scratch
+-- buffer one word per line, where a root correctly is not a keyword because no '.' follows it.
+-- They are covered by the hand-named assertions above instead.
 expect_count('reserved-word', #reserved, 72)
-expect_count('bare contextual-keyword', #bare, 99)
+expect_count('bare contextual-keyword', #bare, 100)
 expect_count('dashed contextual-keyword', #dashed, 32)
 
 expect_all_keywordish('reserved', reserved)

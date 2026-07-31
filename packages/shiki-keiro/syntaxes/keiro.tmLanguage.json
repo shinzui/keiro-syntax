@@ -13,6 +13,7 @@
     { "include": "#modifiers" },
     { "include": "#constants" },
     { "include": "#types" },
+    { "include": "#scalar-roots" },
     { "include": "#control-keywords" },
     { "include": "#numbers" },
     { "include": "#operators" }
@@ -77,13 +78,18 @@
       ]
     },
     "types": {
-      "comment": "`Map` (capitalized) is a primitive type; the reserved lowercase `map` is a control keyword. Oniguruma is case-sensitive, and #types is listed before #control-keywords.",
-      "match": "(?<![A-Za-z0-9_])(?:Bool|Int|Text|Time|UTCTime|Id|Maybe|Natural|Json|Optional|List|Map|typeid|text|int)(?![A-Za-z0-9_])",
+      "comment": "`Map` (capitalized) is a primitive type; the reserved lowercase `map` is a control keyword. Oniguruma is case-sensitive, and #types is listed before #control-keywords. `Integer` (keiro-dsl 8b0f55b) is a distinct spelling from `Int`, not an alias — upstream uses `Int` for machine integers and `Integer` for exact arbitrary-precision ones. It is listed before `Int` for readability only: the trailing `(?![A-Za-z0-9_])` already stops `Int` from claiming the head of `Integer`.",
+      "match": "(?<![A-Za-z0-9_])(?:Bool|Integer|Int|Text|Time|UTCTime|Id|Maybe|Natural|Json|Optional|List|Map|typeid|text|int)(?![A-Za-z0-9_])",
       "name": "support.type.keiro"
     },
+    "scalar-roots": {
+      "comment": "The two roots of a version-2 scalar expression: `reg.balance` reads a register, `cmd.balance` reads a field of the command being handled. Same class as the older dotted roots `input.` and `timer.`, but matched ONLY when a `.` follows. Upstream's `pScalarPath` gives these words meaning only as the head of a dotted path, and `cmd` is already a wire word in five corpus files (`id CommandId prefix=cmd`) that an unconditional rule would recolour. See Section 4 of spec/keiro-dsl-language-model.md.",
+      "match": "(?<![A-Za-z0-9_])(?:reg|cmd)(?=\\.)",
+      "name": "keyword.control.keiro"
+    },
     "control-keywords": {
-      "comment": "`using` introduces the consumer binding block on an `id` or `enum` declaration (`id OrderId prefix=ord using { ... }`). It opens a clause of a declaration another word already began — like `wire` inside a `mapped structural` block — so it belongs here rather than with the modifiers.",
-      "match": "(?<![A-Za-z0-9_])(?:using|regs|states|command|event|wire|projection|snapshot|category|guard|write|emit|goto|fields|module|layout|prefixed|collocated|resolve|persist|patch|continueAsNew|columns|feed|scope|shape|accept|bind|dedupe|decode|disposition|map|queue|payload|retry|fanout|dedup|enqueue|seenIn|body|step|await|sleep|child|topic|ex|name|input|output|in|out|correlate|saga|stream|target|projections|on|advance|schedule|timer|fireAt|fire|source|key|value|run|signal|query|project|result|ordering|backoff|outboxId|messageId|idempotencyKey|discriminator|schemaVersion|derive|of|after|logical|physical|dlq|table|maxRetries|maxAttempts|delay|readModel|field|to|envelope|every|partial|header|schema|version|inline|row|halt|poison|rejected|group|provision|outcome|fixture|interval|retention|standard|unlogged|partitioned|unordered|off|strict|lenient|haskell|package|type|binding|codec|fixtures|initial|object|constructor|string|tag|contents|as|reject|ignore)(?![A-Za-z0-9_])",
+      "comment": "`using` introduces the consumer binding block on an `id` or `enum` declaration (`id OrderId prefix=ord using { ... }`). It opens a clause of a declaration another word already began — like `wire` inside a `mapped structural` block — so it belongs here rather than with the modifiers. `implementation` opens the transition clause `implementation hole` (keiro-dsl 8b0f55b), a peer of `guard`, `write`, `emit`, and `goto`; its second word `hole` is in #constants and stays there.",
+      "match": "(?<![A-Za-z0-9_])(?:implementation|using|regs|states|command|event|wire|projection|snapshot|category|guard|write|emit|goto|fields|module|layout|prefixed|collocated|resolve|persist|patch|continueAsNew|columns|feed|scope|shape|accept|bind|dedupe|decode|disposition|map|queue|payload|retry|fanout|dedup|enqueue|seenIn|body|step|await|sleep|child|topic|ex|name|input|output|in|out|correlate|saga|stream|target|projections|on|advance|schedule|timer|fireAt|fire|source|key|value|run|signal|query|project|result|ordering|backoff|outboxId|messageId|idempotencyKey|discriminator|schemaVersion|derive|of|after|logical|physical|dlq|table|maxRetries|maxAttempts|delay|readModel|field|to|envelope|every|partial|header|schema|version|inline|row|halt|poison|rejected|group|provision|outcome|fixture|interval|retention|standard|unlogged|partitioned|unordered|off|strict|lenient|haskell|package|type|binding|codec|fixtures|initial|object|constructor|string|tag|contents|as|reject|ignore)(?![A-Za-z0-9_])",
       "name": "keyword.control.keiro"
     },
     "numbers": {
@@ -96,7 +102,8 @@
       ]
     },
     "operators": {
-      "match": "-->|--|->|:=|=>|==|!=|<=|>=|<>|&&|\\|\\||[<>@!+;=]",
+      "comment": "`*` multiplies two operands of a version-2 scalar expression (`write x := reg.x * 2`). The matching subtraction operator is a bare `-`, deliberately absent: Section 5 of spec/keiro-dsl-language-model.md lists `-->`, `--`, and `->` but no bare `-`, and a rule for one would colour the dash inside every wire word.",
+      "match": "-->|--|->|:=|=>|==|!=|<=|>=|<>|&&|\\|\\||[<>@!+*;=]",
       "name": "keyword.operator.keiro"
     }
   }

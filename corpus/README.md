@@ -63,6 +63,23 @@ Copied later, as the parser's lexical surface grew:
   transition, so both suites can also check that a nominal declaration leaves the rest of the
   file tokenizing normally. It backs the reconciliation recorded in
   `docs/plans/11-highlight-consumer-owned-nominal-bindings-mapped-nominal-and-using.md`.
+  Note that it is pinned to `fcd6748` and deliberately **not** refreshed: keiro-dsl commit
+  `8b0f55b` rewrote this fixture's transition body into a single `implementation hole` clause,
+  which would delete the only `guard`, `write`, and `:=` tokens in the file and with them six
+  assertions across the two suites. The `implementation hole` clause is covered instead by
+  `transition-implementation-hole.keiro` below.
+- `aggregate-scalar-expressions.keiro` — copied on 2026-07-31 at keiro-dsl commit
+  `8b0f55b530b416f60556c5eaf9bbf84ff9c6ffb9`, from that commit's
+  `keiro-dsl/test/fixtures/aggregate-scalar-expressions-v2.keiro`. It is the corpus's sample of
+  the **scalar expression sublanguage** that commit gave to version-2 aggregate transitions: a
+  `regs` block declaring the new `Integer` type spelling beside `Natural`, `Text`, `Bool`, and
+  `Time`, and one transition whose `guard` and `write` clauses use the `reg.` and `cmd.` roots,
+  all three arithmetic operators (`+`, `-`, `*`), a parenthesised subexpression, a negative
+  integral operand (`-100`), and a boolean comparison. It is upstream's authoritative fixture
+  for the feature — its own suite parses it, validates it, and asserts it round-trips through
+  the pretty-printer — so a verbatim copy proves both packages tokenize the real text. It backs
+  the reconciliation recorded in
+  `docs/plans/12-highlight-the-typed-scalar-expression-language-implementation-hole-integer-reg-cmd-roots-and-arithmetic.md`.
 
 The remaining files are **hand-written for this repository**:
 
@@ -114,6 +131,18 @@ The remaining files are **hand-written for this repository**:
   confirm a preamble leaves the rest of the file tokenizing normally. It backs the
   reconciliation recorded in
   `docs/plans/10-highlight-the-language-keiro-dsl-version-preamble.md`.
+- `transition-implementation-hole.keiro` — authored here (2026-07-31) to cover the parts of
+  keiro-dsl commit `8b0f55b`'s scalar surface that no *single* upstream fixture holds together:
+  the **`implementation hole` transition clause**, which hands one transition's behaviour to
+  consumer-written Haskell, and the two scalar **literal shapes** that appear in no upstream
+  fixture at all — a qualified enum literal (`reg.status == TicketStatus.Open`) and an id
+  literal (`reg.ticketId == TicketId("tkt_01h4…")`). Upstream's only fixture containing
+  `implementation hole` is `nominal-scalars.keiro`, already copied here at an earlier commit as
+  `consumer-nominal-bindings.keiro` and pinned there (see the note on that file above). The
+  file also carries a second, ordinary generated transition so both suites can check that the
+  hole clause leaves the rest of the aggregate tokenizing normally, and a leading comment that
+  names the new keywords so the comment-wins check has something to bite on. It backs the same
+  reconciliation as `aggregate-scalar-expressions.keiro`.
 
 ## Rules for consumers
 

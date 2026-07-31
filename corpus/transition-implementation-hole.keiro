@@ -1,0 +1,43 @@
+# keiro-dsl transition implementation ownership and the scalar literal shapes. Every keyword
+# named in this comment — implementation, guard, write, Integer, reg, cmd — must stay Comment,
+# not keyword.
+language keiro-dsl 2
+context transition-implementation
+
+id   TicketId    prefix=tkt
+enum TicketStatus { Open=open Closed=closed }
+
+aggregate TicketDesk
+  regs
+    ticketId TicketId     = initial
+    status   TicketStatus = initial
+    reserved Integer      = 0
+    label    Text         = ""
+  states Idle Holding Done!
+
+  command Hold   { ticketId:TicketId amount:Integer label:Text }
+  event   TicketHeld = fields(Hold)
+  command Settle { ticketId:TicketId amount:Integer }
+  event   TicketSettled = fields(Settle)
+
+  # A transition whose behaviour the consumer owns. The whole body is one clause: keiro-dsl
+  # generates a typed hole for it instead of a deterministic transducer.
+  Idle -- Hold -->
+    implementation hole
+    emit TicketHeld
+    goto Holding
+
+  # A generated transition, using the scalar expression sublanguage in full: the reg. and cmd.
+  # roots, all three arithmetic operators, a quoted literal, a qualified enum literal, and an
+  # id literal.
+  Holding -- Settle -->
+    guard reg.reserved + cmd.amount * 2 - 1 >= 0
+      && reg.status == TicketStatus.Open
+      && reg.ticketId == TicketId("tkt_01h455vb4pex5vsknk084sn02q")
+      && reg.label != ""
+    write reserved := reg.reserved * 2
+    write label := "settled"
+    emit TicketSettled
+    goto Done
+
+  wire kind=ctorName fields=camelCase schemaVersion=1
