@@ -461,6 +461,34 @@ expect('emit LanguageObserved', 'keiroKeyword')
 expect('goto Open', 'keiroStatement')
 expect('-->', 'keiroOperator')
 
+-- A third released language version (keiro-dsl e41e989). Upstream released version 3, bound to
+-- the SAME body grammar as version 2, so it adds no spelling; what it adds is a semantic rule
+-- on `id ... prefix=` values, which no highlighter models. These assertions exist because until
+-- now every preamble in the corpus read `1` or `2` — a rule that special-cased those two digits
+-- would have passed everything above.
+--
+-- This corpus file puts the preamble on line 1 with its comment banner *below*, because expect()
+-- reads the first line containing the literal and a `3` in a banner would shadow the version.
+open('corpus/language-version-3.keiro')
+expect('language keiro-dsl 3', 'keiroKeyword')
+expect_uniform('language', 'keiroKeyword', 'language keiro-dsl 3')
+expect_uniform('keiro-dsl', 'keiroStatement', 'language keiro-dsl 3')
+expect('3', 'keiroNumber')
+-- The version-2-gated body beneath must colour exactly as the same surface does under a `2`
+-- preamble in corpus/aggregate-scalar-expressions.keiro and corpus/consumer-nominal-bindings.keiro.
+expect('nominal EntryLabel', 'keiroModifier')
+expect_uniform('using', 'keiroStatement', 'id LedgerId prefix=ledger')
+expect_uniform('Integer', 'keiroType', 'balance Integer = 0')
+expect_uniform('reg', 'keiroStatement', 'guard reg.balance')
+expect_uniform('cmd', 'keiroStatement', 'guard reg.balance')
+expect('aggregate VersionThreeLedger', 'keiroKeyword')
+expect('states Open', 'keiroStatement')
+expect('emit Posted', 'keiroKeyword')
+expect(':=', 'keiroOperator')
+-- `prefix=ledger` is a legal TypeID prefix under version 3's new semantic rule; the point here
+-- is that keiro.vim colours the `prefix` modifier the same way regardless of that rule.
+expect('prefix=ledger', 'keiroModifier')
+
 -- The regression guard for the whole follow-'.' decision on the two roots. `cmd` is a
 -- user-chosen wire word in five corpus files (`id CommandId prefix=cmd`), and an unconditional
 -- rule would recolour every one of them. Asserted against the oldest corpus file, so a future

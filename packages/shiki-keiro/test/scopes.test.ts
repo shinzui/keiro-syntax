@@ -209,6 +209,7 @@ const collisions = readFileSync(
   resolve(repoRoot, 'corpus/language-identifier-collisions.keiro'),
   'utf8',
 )
+const versionThree = readFileSync(resolve(repoRoot, 'corpus/language-version-3.keiro'), 'utf8')
 
 test('comments get the comment scope', () => {
   expectScope(sampler, '# keiro-dsl lexical sampler — comments, strings, numbers, durations, versions', 'comment.line.number-sign.keiro')
@@ -498,6 +499,40 @@ test('a comment banner above the preamble stays a comment', () => {
     '# deciding which line is first. Every word named in this comment — language, keiro-dsl,',
     'comment.line.number-sign.keiro',
   )
+})
+
+// --- A third released language version (keiro-dsl e41e989) -------------------
+//
+// Upstream released version 3, bound to the SAME body grammar as version 2. So version 3 adds
+// no spelling; what it adds is a semantic rule on `id … prefix=` values, which no highlighter
+// models. These tests exist because until now the corpus only ever wrote `1` or `2` in a
+// preamble — a grammar that special-cased those two digits would have passed everything.
+
+test('the version-3 preamble version is an ordinary number', () => {
+  // The preamble is on line 1 of this corpus file, so the first `3` found is the version.
+  expectScope(versionThree, '3', 'constant.numeric.keiro')
+})
+
+test('the version-3 preamble words keep their preamble classes', () => {
+  expectScope(versionThree, 'language', 'keyword.declaration.keiro')
+  expectWholeToken(versionThree, 'keiro-dsl', 'keyword.control.keiro', 'language keiro-dsl 3')
+})
+
+test('a version-3 body colours exactly like a version-2 body', () => {
+  // Every one of these is version-2-gated surface asserted elsewhere over a `2` preamble
+  // (see the scalar-expression tests below). Under a `3` it must not move.
+  expectWholeToken(versionThree, 'Integer', 'support.type.keiro', 'balance Integer = 0')
+  expectWholeToken(versionThree, 'reg', 'keyword.control.keiro', 'guard reg.balance')
+  expectWholeToken(versionThree, 'cmd', 'keyword.control.keiro', 'guard reg.balance')
+  expectScope(versionThree, ':=', 'keyword.operator.keiro')
+  expectScope(versionThree, 'guard', 'keyword.control.keiro')
+  expectScope(versionThree, 'aggregate', 'keyword.declaration.keiro')
+})
+
+test('a version-3 nominal binding colours like any other nominal binding', () => {
+  expectWholeToken(versionThree, 'nominal', 'storage.modifier.keiro', 'mapped nominal EntryLabel')
+  expectWholeToken(versionThree, 'using', 'keyword.control.keiro', 'id LedgerId prefix=ledger')
+  expectScope(versionThree, 'prefix', 'storage.modifier.keiro')
 })
 
 // --- Consumer-owned nominal bindings (keiro-dsl fcd6748) ---------------------

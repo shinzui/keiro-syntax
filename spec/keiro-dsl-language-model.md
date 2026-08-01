@@ -47,16 +47,32 @@ is exactly three tokens: the word `language`, the word `keiro-dsl`, and a positi
 version. Neither word is reserved, so both are listed in Section 4, which also explains why a
 highlighter must **not** try to model the placement rule.
 
-Since keiro-dsl commit `fcd6748` the released-contract registry holds **two** versions, `1`
-and `2`; version 2 is the contract under which the **nominal binding** syntax described in
-Section 4 is legal, and a source using that syntax must open `language keiro-dsl 2`. A
-highlighter models none of that: the version is an ordinary Number (Section 2) whatever its
-value, and which words a given version admits is a parser concern. (Parser: the grammar
-production that owns each piece of successor syntax checks the version itself and fails with a
+Since keiro-dsl commit `fcd6748` the released-contract registry holds more than one version,
+and since keiro-dsl commit `e41e989` it holds **three**: `1`, `2`, and `3`. Version 2 is the
+contract under which the **nominal binding** syntax described in Section 4 is legal, and a
+source using that syntax must open `language keiro-dsl 2` or later. A highlighter models none
+of that: the version is an ordinary Number (Section 2) whatever its value, and which words a
+given version admits is a parser concern. (Parser: the grammar production that owns each piece
+of successor syntax checks the version itself and fails with a
 `LanguageFeatureRequiresVersion` diagnostic below version 2 — `pIdDecl` and `pEnumDecl` for the
 trailing `using { … }` clause, and the `nominal` branch of `pMappedTopItem` for
 `mapped nominal …`. An editor must still tokenize such a file while its author is fixing the
 version line.)
+
+**Version 3 adds no spelling at all.** The registry in `Keiro/Dsl/LanguageVersion.hs` names a
+body grammar per released version, and the version 3 entry names the *same* one version 2 does
+(`LanguageDefinition version3 (Just version2) LanguageBodyParserV2`). So a version-3 source is
+lexically a version-2 source that happens to write `3` in its preamble, and everything Section 4
+says about the version-2 surface applies unchanged under a `3`. What version 3 actually
+introduces is **semantic**: it is the first contract to select runtime semantics
+`keiro-dsl/runtime-semantics/2`, under which an `id` declaration's `prefix=` value must be a
+legal TypeID prefix (module `Keiro/Dsl/IdDomain.hs`, published domain
+`keiro-dsl/id-domain/typeid-v7/1`, enforced by `validateNominal` in `Keiro/Dsl/Validate.hs` with
+a `NominalInvalidIdPrefix` diagnostic). Versions 1 and 2 keep admitting arbitrary prefix text.
+A highlighter colours `prefix=` and its value identically either way — whether a value passes a
+semantic check is not a lexical property, and the rule above still holds: an editor tokenizes a
+file while its author is fixing the diagnostic. `corpus/language-version-3.keiro` is the sample
+both packages tokenize to prove a third version value changes nothing.
 
 Since keiro-dsl commit `8b0f55b` version 2 is also the contract for the **scalar expression
 sublanguage** described in Section 4, which adds four more gated spellings: the type name
@@ -621,7 +637,8 @@ continues *after* a closing brace, so a line can read
 punctuation in both packages, so nothing special is needed for it — but a future contributor
 tempted to add brace matching to either grammar should know the case exists.
 
-Nominal binding syntax requires the source to declare `language keiro-dsl 2` (Section 1).
+Nominal binding syntax requires the source to declare `language keiro-dsl 2` or later
+(Section 1; version 3 shares version 2's body grammar, so it admits this syntax too).
 Neither package models that, for the reason Section 1 gives: highlighting is purely lexical.
 Until keiro-dsl commit `54a5342` the parser was stricter about `using` than about any other
 unreserved word — the `ensureBodyFeatures` pre-scan rejected a version-1 source whose lines
@@ -633,7 +650,7 @@ unconditionally.
 
 ### The scalar expression sublanguage
 
-Since keiro-dsl commit `8b0f55b` a source declaring `language keiro-dsl 2` writes the `guard`
+Since keiro-dsl commit `8b0f55b` a source declaring `language keiro-dsl 2` or later writes the `guard`
 and `write` clauses of an **aggregate transition** in a real expression language. Before that
 commit those clauses could only compare or copy whole values and every arithmetic character was
 a hand-written parse error; now they read values through two named roots, do arithmetic, and

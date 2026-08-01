@@ -1,0 +1,55 @@
+language keiro-dsl 3
+# keiro-dsl language version 3 (upstream commit e41e989). The preamble above is the whole point
+# of this file: version 3 binds the SAME body grammar as version 2, so everything below is
+# ordinary version-2 surface and must colour exactly as it does in corpus/language-preamble.keiro,
+# corpus/consumer-nominal-bindings.keiro, and corpus/aggregate-scalar-expressions.keiro. The
+# version is an ordinary Number whatever its value — before this file the corpus only ever wrote
+# 1 and 2, so a highlighter that special-cased those two digits would have passed every test.
+#
+# The preamble is on line 1 rather than under a banner on purpose: both suites anchor on the
+# FIRST occurrence of a literal, and a 3 appearing earlier would shadow the version.
+context id_domain_ledger
+
+# Version 3 is the first contract that checks an `id` declaration's prefix= value against a
+# TypeID prefix domain (upstream Keiro/Dsl/IdDomain.hs). That is a semantic rule, invisible
+# here: `prefix=` and its value colour identically under every version. These prefixes are
+# nonetheless spelled to satisfy it, so pasting this file into `keiro check` is not a trap.
+id LedgerId prefix=ledger using {
+  haskell package=id-domain-conformance module=IdDomain.Domain type=LedgerId
+  binding = "IdDomain.Bindings.ledgerIdBinding"
+  binding-version = "1"
+  canonical-type = "nominal.LedgerId.v1"
+  fixtures = "IdDomain.Bindings.ledgerIdFixtures"
+  initial = "IdDomain.Bindings.initialLedgerId"
+}
+
+mapped nominal EntryLabel : Text {
+  haskell package=id-domain-conformance module=IdDomain.Domain type=EntryLabel
+  binding = "IdDomain.Bindings.entryLabelBinding"
+  binding-version = "1"
+  canonical-type = "nominal.EntryLabel.v1"
+  fixtures = "IdDomain.Bindings.entryLabelFixtures"
+  initial = "IdDomain.Bindings.initialEntryLabel"
+}
+
+aggregate VersionThreeLedger
+  regs
+    balance Integer = 0
+    entries Natural = 0
+    label EntryLabel = initial
+  states Open Settled!
+
+  command Post { amount:Integer label:EntryLabel }
+  event Posted = fields(Post)
+
+  Open -- Post -->
+    guard reg.balance + cmd.amount >= -100 && reg.entries <= 1000
+    write balance := reg.balance + cmd.amount * 2
+    write entries := reg.entries + 1
+    write label := cmd.label
+    emit Posted
+    goto Settled
+
+  wire kind=ctorName fields=camelCase schemaVersion=1
+  snapshot every 1
+    state-codec version=1 shape-hash="id-domain-ledger-v3"

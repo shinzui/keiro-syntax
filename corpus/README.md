@@ -164,6 +164,25 @@ The remaining files are **hand-written for this repository**:
   hole clause leaves the rest of the aggregate tokenizing normally, and a leading comment that
   names the new keywords so the comment-wins check has something to bite on. It backs the same
   reconciliation as `aggregate-scalar-expressions.keiro`.
+- `language-version-3.keiro` — authored here (2026-08-01) to exercise the **third released
+  language version** keiro-dsl commit `e41e989` added: `language keiro-dsl 3`. It is
+  hand-written for the same reason `language-preamble.keiro` is — no upstream fixture uses the
+  preamble; upstream's version-3 test builds its source by string-substituting the preamble line
+  of a version-2 fixture. Its value is that it is the corpus's **third distinct version
+  number**: before it, every preamble here read `1` or `2`, so a highlighter that special-cased
+  those two digits would have passed every assertion, even though Section 1 of
+  `spec/keiro-dsl-language-model.md` has always claimed the version is an ordinary Number
+  whatever its value. Unlike `language-preamble.keiro` it puts the preamble on line 1 with the
+  comment banner *below* it, because both suites anchor on the first occurrence of a literal and
+  a `3` in a banner would shadow the version under test. The body is deliberately ordinary
+  version-2 surface — a `mapped nominal` binding, an `id … using { … }` block, and a transition
+  using the scalar roots `reg.` and `cmd.` with `Integer` — because version 3 binds the *same*
+  body grammar as version 2 (`LanguageBodyParserV2`) and so adds no spelling of its own; the
+  suites assert it colours exactly as the same surface does under a `2`. Its `id` prefix is
+  spelled to satisfy version 3's new TypeID prefix rule, which is a semantic check no
+  highlighter models, so that pasting the file into `keiro check` is not a trap. It backs the
+  reconciliation recorded in
+  `docs/plans/14-record-keiro-dsl-language-version-3-and-prove-the-preamble-version-stays-an-ordinary-number.md`.
 
 ## Rules for consumers
 
