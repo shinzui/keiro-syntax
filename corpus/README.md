@@ -80,6 +80,27 @@ Copied later, as the parser's lexical surface grew:
   the pretty-printer — so a verbatim copy proves both packages tokenize the real text. It backs
   the reconciliation recorded in
   `docs/plans/12-highlight-the-typed-scalar-expression-language-implementation-hole-integer-reg-cmd-roots-and-arithmetic.md`.
+- `language-identifier-collisions.keiro` — copied on 2026-08-01 at keiro-dsl commit
+  `9ea8f8541da57c26d7317d120457240d7a634225`, from that commit's
+  `keiro-dsl/test/fixtures/language-identifier-v1.keiro`. It contains **no token this corpus
+  did not already have**; what it contributes is a legal source in which the five spellings
+  that collide with version-2 syntax all appear as ordinary *data*: the context wire word
+  `language-collisions`, an `id UsingId`, an `enum Integer`, wire keys spelled
+  `"implementation hole"` and `"cmd. using Integer implementation hole"`, a register named
+  `language` on its own line whose initial value is the string
+  `"using Integer implementation hole reg. cmd."`, and command fields named `using`,
+  `implementation`, `reg`, and `cmd`. Such a file could not exist before that commit: the
+  parser's `ensureBodyFeatures` pre-scan rejected a version-1 source that merely *contained*
+  any of those spellings on a non-comment line, and any line whose first word was `language`
+  was read as a misplaced version preamble. That commit deleted the pre-scan and moved every
+  check into the grammar production that owns the syntax. Both suites use the file for the
+  cases only it can express — that `reg` and `cmd` stay plain in a field list because no `.`
+  follows them, and that a string full of keywords stays one String — and it backs the
+  reconciliation recorded in
+  `docs/plans/13-reconcile-the-language-version-gating-notes-with-grammar-context-parsing.md`.
+  Its version-2 twin, `keiro-dsl/test/fixtures/language-identifier-v2.keiro`, is deliberately
+  not copied: the two differ only by a `language keiro-dsl 2` preamble line, and the corpus
+  already has two preamble samples.
 
 The remaining files are **hand-written for this repository**:
 

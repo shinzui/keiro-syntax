@@ -38,32 +38,50 @@ context hospital-capacity
 ```
 
 It is optional — a source without one is a *legacy unversioned* source and parses
-identically. When present it must be the first line of the file that is neither blank nor a
-comment, so it may sit **below** a comment banner, and it may appear only once. (Parser: a
-new two-stage entry point `parseSource` runs `selectSourceLanguage` over the raw text before
-any grammar is chosen; `significantLines` strips each line's `#` comment and drops the lines
-that are then empty.) The clause is exactly three tokens: the word `language`, the word
-`keiro-dsl`, and a positive decimal version. Neither word is reserved, so both are listed in
-Section 4, which also explains why a highlighter must **not** try to model the placement
-rule.
+identically. When present it must be the first clause of the file, so it may sit **below** a
+comment banner, and it may appear only once. (Parser: a two-stage entry point `parseSource`
+runs `selectSourceLanguage` first; since keiro-dsl commit `54a5342` that pass is a real
+parser, `pInitialLanguageClause`, which skips leading whitespace and `#` comments and then
+looks for the word `language` at the very first token position and nowhere else.) The clause
+is exactly three tokens: the word `language`, the word `keiro-dsl`, and a positive decimal
+version. Neither word is reserved, so both are listed in Section 4, which also explains why a
+highlighter must **not** try to model the placement rule.
 
 Since keiro-dsl commit `fcd6748` the released-contract registry holds **two** versions, `1`
 and `2`; version 2 is the contract under which the **nominal binding** syntax described in
 Section 4 is legal, and a source using that syntax must open `language keiro-dsl 2`. A
 highlighter models none of that: the version is an ordinary Number (Section 2) whatever its
-value, and which words a given version admits is a parser concern. (Parser: `parseSource`
-now calls `ensureBodyFeatures` before choosing a body grammar; it scans the raw significant
-lines for `mapped nominal …` or for any line containing the word `using` and rejects them
-with a `LanguageFeatureRequiresVersion` diagnostic below version 2. An editor must still
-tokenize such a file while its author is fixing the version line.)
+value, and which words a given version admits is a parser concern. (Parser: the grammar
+production that owns each piece of successor syntax checks the version itself and fails with a
+`LanguageFeatureRequiresVersion` diagnostic below version 2 — `pIdDecl` and `pEnumDecl` for the
+trailing `using { … }` clause, and the `nominal` branch of `pMappedTopItem` for
+`mapped nominal …`. An editor must still tokenize such a file while its author is fixing the
+version line.)
 
-Since keiro-dsl commit `8b0f55b` that same scan — renamed `requiresSuccessorSyntax` — fires on
-four more things, all of them from the **scalar expression sublanguage** described in Section
-4: the word `Integer` anywhere on a significant line, and the substrings `implementation hole`,
-`reg.`, and `cmd.`. Version 2 is therefore the contract for that sublanguage as well as for
-nominal bindings. Nothing about this changes what a highlighter does. A version-1 file that
-merely names `Integer` is now a parse failure and is still an ordinary thing to colour, for the
-same reason as above: an editor tokenizes a file while its author is fixing the diagnostic.
+Since keiro-dsl commit `8b0f55b` version 2 is also the contract for the **scalar expression
+sublanguage** described in Section 4, which adds four more gated spellings: the type name
+`Integer`, the transition clause `implementation hole`, and the two expression roots `reg.` and
+`cmd.`. Nothing about this changes what a highlighter does. A version-1 file that uses the
+sublanguage is a parse failure and is still an ordinary thing to colour, for the same reason as
+above: an editor tokenizes a file while its author is fixing the diagnostic.
+
+**How the gates are enforced, and why it matters to a reader of this document.** Until
+keiro-dsl commit `54a5342` all of the above was a **raw-text pre-scan**: `parseSource` called
+`ensureBodyFeatures`, which walked every *significant line* — a line with its `#` comment
+stripped and whitespace trimmed, kept only if anything remained — and rejected the file if one
+of those lines merely *contained* the word `using`, the word `Integer`, or the substrings
+`implementation hole`, `reg.`, or `cmd.`, wherever they fell, including inside a string literal.
+That commit deleted the pre-scan (`significantLines`, `isLanguageLine`, and `ensureBodyFeatures`
+are all gone) and moved every decision into the grammar, using a custom `megaparsec` error
+component so a production can still report the exact source-language diagnostic. Three helpers
+do the work — `requireLanguageFeatureAt`, `optionalLanguageFeature`, and
+`languageFeatureKeyword` — and the version threshold for each feature now lives beside the
+released-version registry in `Keiro/Dsl/LanguageVersion.hs` as a `LanguageFeature` value rather
+than as a list of spellings inside the parser. The user-visible relaxation is that all five
+spellings are now rejected only where they actually *mean* the successor syntax, so a version-1
+source may use every one of them as an ordinary identifier and as string content. Both packages
+coloured those words unconditionally before the change and still do; what changed is that the
+files they colour that way can now be valid.
 
 **Authoritative source.** Every fact in this document is confirmed against the keiro-dsl
 parser, a Haskell file using the `megaparsec` library:
@@ -113,7 +131,8 @@ class (Section 6):
 
 - **Plain decimal integers** — `[0-9]+` (e.g. `0`, `1`, `10`, `2024`). The version in the
   `language keiro-dsl 1` preamble (Section 1) is one of these — parser
-  `lexeme (some digitChar)` — and takes the Number class like any other integer; there is no
+  `lexeme (some asciiDigit)`, narrowed from megaparsec's Unicode-aware `digitChar` in keiro-dsl
+  commit `54a5342` — and takes the Number class like any other integer; there is no
   separate "version" class for it. Three slots admit a
   leading `-` sign. A **register initializer** takes `-?[0-9]+(\.[0-9]+)?` — signed, and
   optionally fractional since keiro-dsl commit `da09736` widened `signedDecimalText` (e.g.
@@ -394,18 +413,26 @@ The version itself is an ordinary **Number** (Section 2). There is no separate v
 class.
 
 **A highlighter must not model the placement rule.** The parser requires the preamble to be
-the first *significant* line — first after blank lines and `#` comments are removed — and
-allows at most one; a misplaced or duplicated one is rejected with a `MisplacedLanguagePreamble`
-or `DuplicateLanguagePreamble` diagnostic. Neither package encodes any of that. Section 1's
-rule stands: a word is a keyword because it is in a fixed list, not because of where it
-appears. Two consequences follow, and both are intended. A file whose preamble is in the
-wrong place still tokenizes — which is what an editor must do while its author is fixing the
-diagnostic. And `language` used as an ordinary identifier is coloured as a keyword, exactly
-like `initial`, `key`, and `value` before it. (`language` really is still legal as an
-identifier, but only *mid-line*: the parser tests whether a significant line's **first word**
-is `language`, so a field written `command Record { language:Text }` parses while a register
-declared on its own line as `language Text = "en"` does not. That is a parser trap, not a
-highlighting one.)
+the file's first clause — first after leading blank lines and `#` comments — and allows at most
+one; a misplaced or duplicated one is rejected with a `MisplacedLanguagePreamble` or
+`DuplicateLanguagePreamble` diagnostic. Neither package encodes any of that. Section 1's rule
+stands: a word is a keyword because it is in a fixed list, not because of where it appears. Two
+consequences follow, and both are intended. A file whose preamble is in the wrong place still
+tokenizes — which is what an editor must do while its author is fixing the diagnostic. And
+`language` used as an ordinary identifier is coloured as a keyword, exactly like `initial`,
+`key`, and `value` before it.
+
+`language` really is legal as an identifier, and since keiro-dsl commit `54a5342` it is legal
+*anywhere*, including at the start of a line. The parser no longer asks whether a line's first
+word is `language`; it recognises the preamble only as the complete three-token clause
+`language keiro-dsl <decimal>`, and only at the file's first token (production
+`pInitialLanguageClause`) or, when reporting a misplaced or duplicated one, at a declaration
+boundary in the body (production `pContextualPreamble`, which wraps the whole clause in `try` so
+it backtracks harmlessly off anything shorter). So all three of these now parse: a field written
+`command Record { language:Text }`, a register declared on its own line as
+`language Text = "en"`, and a whole declaration named for the word, as in upstream's own test
+case `id language prefix=lang`. Before that commit only the first parsed; this document
+previously recorded the other two as a parser trap, and that trap is gone.
 
 ### The mapped type declaration
 
@@ -596,10 +623,13 @@ tempted to add brace matching to either grammar should know the case exists.
 
 Nominal binding syntax requires the source to declare `language keiro-dsl 2` (Section 1).
 Neither package models that, for the reason Section 1 gives: highlighting is purely lexical.
-The parser is stricter about `using` than about any other unreserved word — its
-`ensureBodyFeatures` gate rejects a version-1 source whose lines contain `using` *anywhere*,
-not just at the start of a line as with `language` — but that too is a parser rule, and both
-packages color the word unconditionally.
+Until keiro-dsl commit `54a5342` the parser was stricter about `using` than about any other
+unreserved word — the `ensureBodyFeatures` pre-scan rejected a version-1 source whose lines
+contained `using` *anywhere*, string literals included. That commit moved the check into
+`pIdDecl` and `pEnumDecl` (helper `optionalLanguageFeature`), so a version-1 source is now
+rejected only where `using` actually opens a binding clause and is free to use the word as an
+identifier elsewhere. Either way it is a parser rule, and both packages color the word
+unconditionally.
 
 ### The scalar expression sublanguage
 

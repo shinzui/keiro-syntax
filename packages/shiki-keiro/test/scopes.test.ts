@@ -205,6 +205,10 @@ const implementationHole = readFileSync(
   resolve(repoRoot, 'corpus/transition-implementation-hole.keiro'),
   'utf8',
 )
+const collisions = readFileSync(
+  resolve(repoRoot, 'corpus/language-identifier-collisions.keiro'),
+  'utf8',
+)
 
 test('comments get the comment scope', () => {
   expectScope(sampler, '# keiro-dsl lexical sampler — comments, strings, numbers, durations, versions', 'comment.line.number-sign.keiro')
@@ -470,7 +474,7 @@ test('the preamble dialect name gets keyword.control as one whole token', () => 
 })
 
 test('the preamble version is an ordinary number', () => {
-  // No separate version token class: `lexeme (some digitChar)` upstream, Number here. The
+  // No separate version token class: `lexeme (some asciiDigit)` upstream, Number here. The
   // preamble is the file's first digit, so the first `1` found is the version.
   expectScope(preamble, '1', 'constant.numeric.keiro')
 })
@@ -676,6 +680,105 @@ test('scalar keywords inside a comment stay a comment', () => {
     '# named in this comment — implementation, guard, write, Integer, reg, cmd — must stay Comment,',
     'comment.line.number-sign.keiro',
   )
+})
+
+// --- Keyword-spelled identifiers (keiro-dsl 9ea8f85) -------------------------
+//
+// This range added no token. What it added is a *file* — upstream's
+// `language-identifier-v1.keiro`, copied here as corpus/language-identifier-collisions.keiro —
+// in which the five spellings that collide with version-2 syntax all appear as ordinary data.
+// Before the range, keiro-dsl scanned a source as raw lines before any grammar ran and rejected
+// it for containing `using`, `Integer`, `implementation hole`, `reg.`, or `cmd.` anywhere on a
+// non-comment line, and read any line whose first word was `language` as a version preamble. So
+// no such file could be valid. It now is, which makes these the first assertions in this suite
+// that run against a legal source using every one of those words as a name.
+//
+// Nothing here should need a grammar change, and that is the point: both packages have always
+// coloured these words unconditionally, and Section 1 of spec/keiro-dsl-language-model.md says
+// they should. These assertions keep it that way now that such files exist in the wild.
+
+test('a keyword-spelled identifier still gets its keyword class', () => {
+  // `language` at the head of a wire word (`context language-collisions`) and — the case the
+  // old parser rejected outright — at the head of its own register declaration line.
+  expectWholeToken(
+    collisions,
+    'language',
+    'keyword.declaration.keiro',
+    'context language-collisions',
+  )
+  expectWholeToken(collisions, 'language', 'keyword.declaration.keiro', 'language Text = ')
+  // A mapped wire field named `using`, and one named `implementation`.
+  expectWholeToken(collisions, 'using', 'keyword.control.keiro', 'as "using"')
+  expectWholeToken(collisions, 'implementation', 'keyword.control.keiro', 'as "implementation')
+  // ...and the same word as a command field name, where the old parser's substring scan for
+  // `implementation hole` would never have looked.
+  expectWholeToken(collisions, 'implementation', 'keyword.control.keiro', 'reg:Text cmd:Text')
+})
+
+test('an enum named for a type spelling is claimed by the declaration-site rule', () => {
+  // `enum Integer { … }`. #decl-with-name is listed before #types, so the name after `enum`
+  // takes the declaration-site type-name scope rather than the primitive-type one. The Vim
+  // package colours it `keiroType` instead, because its equivalent rule is inert (Section 6 of
+  // spec/keiro-dsl-language-model.md marks the Declaration-site-type-name class optional and
+  // permits exactly this divergence). What both must do is claim the whole word.
+  expectWholeToken(collisions, 'Integer', 'entity.name.type.keiro', 'enum Integer {')
+})
+
+test('a bare scalar root with no following dot stays plain in a field list', () => {
+  // The same follow-`.` guard the reservation.keiro `prefix=cmd` test makes, from a different
+  // direction: here `reg` and `cmd` are a mapped wire field name and a command field name, both
+  // followed by whitespace or `:`. An unconditional root rule would recolour four positions in
+  // this one file.
+  for (const root of ['reg', 'cmd']) {
+    const scopes = scopesOf(collisions, root)
+    expect(scopes, `the bare word ${root} was not found in the collisions corpus`).not.toBeNull()
+    expect(scopes!.filter((s) => KEYWORDISH_SCOPES.has(s))).toEqual([])
+  }
+})
+
+test('successor spellings inside a string literal stay one string', () => {
+  // The register initializer is a string made entirely of words both packages colour elsewhere.
+  // #strings is second in the pattern list, ahead of every bare-word rule, so the whole run is
+  // one token — asserted whole, because a leak would show up as a split rather than as a
+  // missing scope.
+  expectWholeToken(
+    collisions,
+    'using Integer implementation hole reg. cmd.',
+    'string.quoted.double.keiro',
+    'language Text = ',
+  )
+  expectWholeToken(
+    collisions,
+    'implementation hole',
+    'string.quoted.double.keiro',
+    'as "implementation hole"',
+  )
+  expectWholeToken(
+    collisions,
+    'cmd. using Integer implementation hole',
+    'string.quoted.double.keiro',
+    'as "cmd.',
+  )
+})
+
+test('colliding spellings inside a comment stay a comment', () => {
+  expectScope(
+    collisions,
+    '# `using Integer implementation hole reg. cmd.` are inert in comments.',
+    'comment.line.number-sign.keiro',
+  )
+})
+
+test('the collisions file tokenizes normally around the colliding names', () => {
+  expectScope(collisions, 'context', 'keyword.declaration.keiro')
+  expectScope(collisions, 'mapped', 'keyword.declaration.keiro')
+  expectScope(collisions, 'structural', 'storage.modifier.keiro')
+  expectScope(collisions, 'aggregate', 'keyword.declaration.keiro')
+  expectScope(collisions, 'regs', 'keyword.control.keiro')
+  expectScope(collisions, 'states', 'keyword.control.keiro')
+  expectScope(collisions, 'goto', 'keyword.control.keiro')
+  expectScope(collisions, 'Text', 'support.type.keiro')
+  expectScope(collisions, '-->', 'keyword.operator.keiro')
 })
 
 // --- Spec word-list coverage guards -----------------------------------------

@@ -413,6 +413,54 @@ expect('goto Holding', 'keiroStatement')
 expect('guard reg.reserved', 'keiroStatement')
 expect(':=', 'keiroOperator')
 
+-- Keyword-spelled identifiers (keiro-dsl 9ea8f85). This range added no token to keiro.vim.
+-- What it added is a *file*: upstream's `language-identifier-v1.keiro`, copied here as
+-- corpus/language-identifier-collisions.keiro, in which the five spellings that collide with
+-- version-2 syntax all appear as ordinary data. Before the range keiro-dsl scanned a source as
+-- raw lines before any grammar ran and rejected it for containing `using`, `Integer`,
+-- `implementation hole`, `reg.`, or `cmd.` anywhere on a non-comment line, and read any line
+-- whose first word was `language` as a version preamble — so no such file could be valid. It
+-- now is. keiro.vim has always coloured these words unconditionally and still should; these
+-- assertions keep it that way now that such files exist.
+open('corpus/language-identifier-collisions.keiro')
+expect('# `using Integer implementation hole', 'keiroComment')
+-- `language` at the head of a wire word, and — the case the old parser rejected outright — at
+-- the head of its own register declaration line. Both whole-token: '-' is not a keyword
+-- character, so `language-collisions` is a complete `language` keyword followed by plain text,
+-- the same pre-existing behaviour `nominal` has in `context nominal-scalars`.
+expect_uniform('language', 'keiroKeyword', 'context language-collisions')
+expect_uniform('language', 'keiroKeyword', 'language Text = ')
+-- A mapped wire field named `using`, one named `implementation`, and an enum named `Integer`.
+-- `keiroType` rather than `keiroTypeName` for the enum name: the Vim rule for the optional
+-- Declaration-site-type-name refinement has never fired for any introducer (see plan 8), so the
+-- unconditional type keyword wins. The Shiki package claims it as a declaration-site name
+-- instead; Section 6 of spec/keiro-dsl-language-model.md marks that class optional and permits
+-- exactly this divergence.
+expect_uniform('using', 'keiroStatement', 'using          as')
+expect_uniform('implementation', 'keiroStatement', 'implementation as')
+expect_uniform('Integer', 'keiroType', 'enum Integer {')
+-- Strings made entirely of words keiro.vim colours elsewhere. keiroString is a region that
+-- contains only keiroStringEscape, so no bare-word rule can reach inside it — asserted
+-- character by character, because a leak shows up as a split rather than a missing group.
+expect_uniform('"Integer"', 'keiroString')
+expect_uniform('"implementation hole"', 'keiroString')
+expect_uniform('"using Integer implementation hole reg. cmd."', 'keiroString')
+-- The follow-'.' guard on the two roots, from a different direction than the `prefix=cmd` check
+-- below: here `reg` and `cmd` are a mapped wire field name and a command field name, followed by
+-- whitespace and by ':'. An unconditional root rule would recolour four positions in this file.
+expect_no_group('reg             as', 0)
+expect_no_group('cmd             as', 0)
+expect_no_group('reg:Text', 0)
+expect_no_group('cmd:Text', 0)
+-- The file tokenizes normally around the colliding names.
+expect('mapped structural record', 'keiroKeyword')
+expect('aggregate LanguageAggregate', 'keiroKeyword')
+expect('regs', 'keiroStatement')
+expect('states Open', 'keiroStatement')
+expect('emit LanguageObserved', 'keiroKeyword')
+expect('goto Open', 'keiroStatement')
+expect('-->', 'keiroOperator')
+
 -- The regression guard for the whole follow-'.' decision on the two roots. `cmd` is a
 -- user-chosen wire word in five corpus files (`id CommandId prefix=cmd`), and an unconditional
 -- rule would recolour every one of them. Asserted against the oldest corpus file, so a future

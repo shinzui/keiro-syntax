@@ -15,10 +15,11 @@ aggregate Journal
     caption  Text    = placeholder
   states Empty Recorded!
 
-  # `language` is not a reserved word, so it is still legal as a field name — but only in the
-  # middle of a line. The parser asks whether a line's FIRST word is `language`, so a register
-  # declared on its own line as `language Text = "en"` would be read as a misplaced preamble
-  # and rejected. A highlighter has no such rule: it colours every `language` as a keyword.
+  # `language` is not a reserved word, so it is legal as a field name — and since keiro-dsl
+  # 54a5342 it is legal anywhere, line start included: the parser recognises the preamble only
+  # as the complete clause `language keiro-dsl <decimal>`, never as a line whose first word
+  # happens to be `language`. A highlighter has no such rule either: it colours every
+  # `language` as a keyword. See corpus/language-identifier-collisions.keiro.
   command Write { revision:Natural caption:Text language:Text }
   event   Written { revision:Natural caption:Text }
 
