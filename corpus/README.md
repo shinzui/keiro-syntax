@@ -183,6 +183,29 @@ The remaining files are **hand-written for this repository**:
   highlighter models, so that pasting the file into `keiro check` is not a trap. It backs the
   reconciliation recorded in
   `docs/plans/14-record-keiro-dsl-language-version-3-and-prove-the-preamble-version-stays-an-ordinary-number.md`.
+- `language-version-4.keiro` — authored here (2026-08-02) to exercise the **fourth released
+  language version**, which keiro-dsl commit `b49b11f` designated the one **stable** contract
+  while marking versions 1 through 3 compatibility-only: `language keiro-dsl 4`. It is
+  hand-written for the same reasons `language-version-3.keiro` is, and it earns its place twice
+  over. First, it is the corpus's **fourth distinct version number**, and the one that matters
+  most in practice: the same upstream commit changed `Keiro/Dsl/Skeleton.hs` so that every
+  starter file `keiro new <kind>` writes now opens `language keiro-dsl 4`, so this is the
+  preamble an editor will meet most often. Like `language-version-3.keiro` it puts the preamble
+  on line 1 with the comment banner *below* it, because both suites anchor on the first
+  occurrence of a literal and a `4` in a banner would shadow the version under test. Second, its
+  body is shaped after upstream's freshly **migrated** fixtures rather than after the minimal
+  starter: keiro-dsl commits `bce4b35` and `cd22e7f` moved 225 fixtures onto version 4 and in the
+  process deleted each aggregate's hand-maintained state-vertex register and qualified every
+  transition operand — `guard divertStatus != TotalDivert` became
+  `guard cmd.divertStatus != DivertStatus.TotalDivert`. The **qualified enum member** in that
+  shape (here `EntryStatus.Active`) had appeared in this corpus only once, in
+  `transition-implementation-hole.keiro` as `TicketStatus.Open`, and was asserted by neither
+  suite; this file is where both suites pin it. Version 4 binds the *same* body grammar and
+  syntax profile as versions 2 and 3, so it adds no spelling of its own and the suites assert the
+  body colours exactly as the same surface does under a `2` or a `3`. Its `id` prefix satisfies
+  the TypeID prefix rule and its state names avoid its enum's member names, so pasting the file
+  into `keiro check` is not a trap. It backs the reconciliation recorded in
+  `docs/plans/15-record-keiro-dsl-language-version-4-as-the-stable-contract-and-cover-a-version-4-preamble-in-the-corpus.md`.
 
 ## Rules for consumers
 

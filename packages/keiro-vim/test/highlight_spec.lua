@@ -489,6 +489,48 @@ expect(':=', 'keiroOperator')
 -- is that keiro.vim colours the `prefix` modifier the same way regardless of that rule.
 expect('prefix=ledger', 'keiroModifier')
 
+-- The stable fourth language version (keiro-dsl b49b11f, cd22e7f). b49b11f marked version 4 the
+-- one `Stable` registry entry and versions 1-3 `CompatibilityOnly`, and changed
+-- `Keiro/Dsl/Skeleton.hs` so every `keiro new <kind>` starter file opens `language keiro-dsl 4`;
+-- cd22e7f then migrated upstream's 225-file fixture corpus onto it. Version 4 binds the SAME
+-- body grammar and syntax profile as versions 2 and 3, so it adds no spelling and this range
+-- needed no syntax-file edit. These assertions exist because `4` is now the version an editor
+-- will meet most often and the corpus had never carried it.
+--
+-- Like the version-3 file, this corpus file puts the preamble on line 1 with its comment banner
+-- *below*, because expect() reads the first line containing the literal and a `4` in a banner
+-- would shadow the version.
+open('corpus/language-version-4.keiro')
+expect('language keiro-dsl 4', 'keiroKeyword')
+expect_uniform('language', 'keiroKeyword', 'language keiro-dsl 4')
+expect_uniform('keiro-dsl', 'keiroStatement', 'language keiro-dsl 4')
+expect('4', 'keiroNumber')
+-- The body beneath must colour exactly as the same surface does under a `2` or `3` preamble.
+expect('aggregate StableLedger', 'keiroKeyword')
+expect('enum EntryStatus', 'keiroKeyword')
+expect('states Recording', 'keiroStatement')
+expect_uniform('Integer', 'keiroType', 'balance Integer')
+expect_uniform('cmd', 'keiroStatement', 'guard cmd.amount')
+expect_uniform('reg', 'keiroStatement', 'guard cmd.amount')
+expect('emit EntrySettled', 'keiroKeyword')
+expect(':=', 'keiroOperator')
+expect('prefix=entry', 'keiroModifier')
+
+-- The qualified enum member, pinned here for the first time in this repository. Upstream's
+-- migration rewrote `guard divertStatus != TotalDivert` as
+-- `guard cmd.divertStatus != DivertStatus.TotalDivert`, making this the standard way to write an
+-- enum operand; it had reached the corpus only once, as `TicketStatus.Open` in
+-- transition-implementation-hole.keiro, and neither suite asserted it.
+--
+-- This is the other half of the follow-'.' decision the two expect_uniform calls above exercise.
+-- `cmd` and `reg` become keiroStatement precisely BECAUSE a '.' follows them; an enum type name
+-- in the same position must stay plain, or every qualified operand in upstream's migrated corpus
+-- would light up. The anchor carries the `== ` prefix so locate() finds the guard line rather
+-- than the comment banner, which names the same spelling.
+expect_no_group('== EntryStatus.Active', 3)   -- the 'E' of the qualifier
+expect_no_group('== EntryStatus.Active', 14)  -- the '.' itself
+expect_no_group('== EntryStatus.Active', 15)  -- the 'A' of the member
+
 -- The regression guard for the whole follow-'.' decision on the two roots. `cmd` is a
 -- user-chosen wire word in five corpus files (`id CommandId prefix=cmd`), and an unconditional
 -- rule would recolour every one of them. Asserted against the oldest corpus file, so a future

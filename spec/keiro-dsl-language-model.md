@@ -48,7 +48,7 @@ version. Neither word is reserved, so both are listed in Section 4, which also e
 highlighter must **not** try to model the placement rule.
 
 Since keiro-dsl commit `fcd6748` the released-contract registry holds more than one version,
-and since keiro-dsl commit `e41e989` it holds **three**: `1`, `2`, and `3`. Version 2 is the
+and as of keiro-dsl commit `3e1217c` it holds **four**: `1`, `2`, `3`, and `4`. Version 2 is the
 contract under which the **nominal binding** syntax described in Section 4 is legal, and a
 source using that syntax must open `language keiro-dsl 2` or later. A highlighter models none
 of that: the version is an ordinary Number (Section 2) whatever its value, and which words a
@@ -73,6 +73,30 @@ A highlighter colours `prefix=` and its value identically either way — whether
 semantic check is not a lexical property, and the rule above still holds: an editor tokenizes a
 file while its author is fixing the diagnostic. `corpus/language-version-3.keiro` is the sample
 both packages tokenize to prove a third version value changes nothing.
+
+**Version 4 adds no spelling either, and it is the one version marked stable.** Its registry
+entry names the same body grammar and the same syntax profile as versions 2 and 3
+(`LanguageDefinition version4 (Just version3) LanguageBodyParserV2 profileV2 …`), so a version-4
+source is once again lexically a version-2 source that happens to write `4` in its preamble. What
+version 4 adds is a third runtime-semantics profile, which governs generated-code capabilities
+rather than notation. Since keiro-dsl commit `b49b11f` each registry entry also carries a
+`LanguageSupport` value — `Stable` or `CompatibilityOnly` — and exactly one entry may be `Stable`:
+version 4 is, while versions 1 through 3 are `CompatibilityOnly`, retained so historical sources
+keep their released meaning. **A highlighter models neither the count nor the support status.**
+Both are registry facts, and the preamble's version stays an ordinary Number whatever its value
+and whatever its standing; a file opening `language keiro-dsl 1` must colour exactly as one
+opening `language keiro-dsl 4`, and a file naming a version that does not exist at all must still
+tokenize while its author fixes the diagnostic.
+
+The split is nonetheless worth knowing about, because it changed which version a reader will
+actually meet. `Keiro/Dsl/Skeleton.hs` writes the preamble of every starter file the
+`keiro new <kind>` subcommand produces, and that commit changed it from a hard-coded
+`language keiro-dsl 1` to `currentStableLanguageVersion`; upstream then migrated its own 225-file
+fixture corpus onto `4` in commits `bce4b35` and `cd22e7f`. So `4` is now the version a newly
+authored `.keiro` file opens with. `corpus/language-version-4.keiro` is the sample both packages
+tokenize to prove a fourth version value changes nothing, and it doubles as this repository's
+coverage of the transition shape that migration made standard: no hand-maintained state-vertex
+register, and operands qualified with `cmd.`, `reg.`, or an enum type name.
 
 Since keiro-dsl commit `8b0f55b` version 2 is also the contract for the **scalar expression
 sublanguage** described in Section 4, which adds four more gated spellings: the type name

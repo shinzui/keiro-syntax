@@ -210,6 +210,7 @@ const collisions = readFileSync(
   'utf8',
 )
 const versionThree = readFileSync(resolve(repoRoot, 'corpus/language-version-3.keiro'), 'utf8')
+const versionFour = readFileSync(resolve(repoRoot, 'corpus/language-version-4.keiro'), 'utf8')
 
 test('comments get the comment scope', () => {
   expectScope(sampler, '# keiro-dsl lexical sampler — comments, strings, numbers, durations, versions', 'comment.line.number-sign.keiro')
@@ -533,6 +534,54 @@ test('a version-3 nominal binding colours like any other nominal binding', () =>
   expectWholeToken(versionThree, 'nominal', 'storage.modifier.keiro', 'mapped nominal EntryLabel')
   expectWholeToken(versionThree, 'using', 'keyword.control.keiro', 'id LedgerId prefix=ledger')
   expectScope(versionThree, 'prefix', 'storage.modifier.keiro')
+})
+
+// --- The stable fourth language version (keiro-dsl b49b11f, cd22e7f) ---------
+//
+// keiro-dsl b49b11f marked version 4 the one `Stable` registry entry and versions 1-3
+// `CompatibilityOnly`, and changed `Keiro/Dsl/Skeleton.hs` so every `keiro new <kind>` starter
+// file opens `language keiro-dsl 4`. cd22e7f then migrated upstream's 225-file fixture corpus
+// onto it. Version 4 binds the SAME body grammar and syntax profile as versions 2 and 3, so it
+// adds no spelling; nothing in the grammar changed for this range. These assertions exist
+// because `4` is now the version an editor will meet most often and the corpus had never
+// carried it, and because the migration made the qualified enum member the standard way to
+// write an enum operand.
+
+test('the version-4 preamble version is an ordinary number', () => {
+  // The preamble is on line 1 of this corpus file, so the first `4` found is the version.
+  expectScope(versionFour, '4', 'constant.numeric.keiro')
+})
+
+test('the version-4 preamble words keep their preamble classes', () => {
+  expectScope(versionFour, 'language', 'keyword.declaration.keiro')
+  expectWholeToken(versionFour, 'keiro-dsl', 'keyword.control.keiro', 'language keiro-dsl 4')
+})
+
+test('a version-4 body colours exactly like a version-2 body', () => {
+  // Every one of these is version-2-gated surface asserted elsewhere over a `2` preamble. The
+  // stable/compatibility-only split is a registry fact, so under a `4` none of it may move.
+  expectWholeToken(versionFour, 'Integer', 'support.type.keiro', 'balance Integer       = 0')
+  expectWholeToken(versionFour, 'cmd', 'keyword.control.keiro', 'guard cmd.amount')
+  expectWholeToken(versionFour, 'reg', 'keyword.control.keiro', 'guard cmd.amount')
+  expectScope(versionFour, ':=', 'keyword.operator.keiro')
+  expectScope(versionFour, 'guard', 'keyword.control.keiro')
+  expectScope(versionFour, 'aggregate', 'keyword.declaration.keiro')
+})
+
+test('a qualified enum member is a plain qualified name', () => {
+  // The spelling upstream's migration made standard: `guard divertStatus != TotalDivert` became
+  // `guard cmd.divertStatus != DivertStatus.TotalDivert`. It reached this corpus once, as
+  // `TicketStatus.Open` in transition-implementation-hole.keiro, and neither suite asserted it.
+  //
+  // The property under test is a *negative* one, and it is the other half of the follow-`.`
+  // decision the two tests above exercise. `cmd` and `reg` become keywords precisely because a
+  // `.` follows them; an enum type name in the same position must not. Nothing here should be
+  // claimed by any rule — not the qualifier, not the member, not the dot.
+  const scopes = scopesOf(versionFour, 'EntryStatus.Active')
+  expect(scopes, 'the qualified enum member was not found in corpus/language-version-4.keiro').not.toBeNull()
+  expect(scopes!.filter((s) => KEYWORDISH_SCOPES.has(s))).toEqual([])
+  // The declaration site is different: there `EntryStatus` is a declared type name.
+  expectScope(versionFour, 'EntryStatus', 'entity.name.type.keiro')
 })
 
 // --- Consumer-owned nominal bindings (keiro-dsl fcd6748) ---------------------

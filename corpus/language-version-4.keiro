@@ -1,0 +1,49 @@
+language keiro-dsl 4
+# keiro-dsl language version 4 (upstream commit b49b11f designated it stable; cd22e7f migrated
+# upstream's whole fixture corpus onto it). The preamble above is half the point of this file:
+# version 4 binds the SAME body grammar and syntax profile as versions 2 and 3, so everything
+# below is ordinary version-2 surface and must colour exactly as it does in
+# corpus/aggregate-scalar-expressions.keiro and corpus/language-version-3.keiro. The version is
+# an ordinary Number whatever its value AND whatever its support status — the registry marks 4
+# stable and 1-3 compatibility-only, and no highlighter models that distinction.
+#
+# The preamble is on line 1 rather than under a banner on purpose: both suites anchor on the
+# FIRST occurrence of a literal, and a 4 appearing earlier would shadow the version.
+#
+# The other half of the point is the transition shape upstream's migration made standard. A
+# version-1 aggregate tracked its own state machine vertex in a register and wrote guards over
+# bare operand names; a migrated version-4 aggregate drops the register and qualifies every
+# operand with `cmd.`, `reg.`, or an enum type name. The qualified enum member below
+# (`EntryStatus.Active`) is the spelling upstream now uses everywhere and that nothing in this
+# repository asserted until this file existed.
+context stable_ledger
+
+# The id prefix below is a legal TypeID prefix, which versions 3 and later require. That is a
+# semantic rule, invisible here: the modifier and its value colour identically under every
+# version. Spelling it correctly keeps this file from being a trap for a reader who pastes it
+# into `keiro check`. (The literal is not repeated in this banner, because both suites anchor on
+# the first line containing it and would find this comment instead of the declaration.)
+id LedgerEntryId prefix=entry
+
+# The enum member names deliberately avoid the aggregate's state names below — upstream rejects
+# a collision with a VertexCtorCollision diagnostic.
+enum EntryStatus { Active=active Closed=closed }
+
+aggregate StableLedger
+  regs
+    entryId LedgerEntryId = placeholder
+    balance Integer       = 0
+    status  EntryStatus   = Active
+  states Recording Settled!
+
+  command SettleEntry { entryId amount:Integer status:EntryStatus }
+  event EntrySettled = fields(SettleEntry)
+
+  Recording -- SettleEntry -->
+    guard cmd.amount >= 0 && reg.status == EntryStatus.Active
+    write balance := reg.balance + cmd.amount
+    write status  := EntryStatus.Closed
+    emit EntrySettled
+    goto Settled
+
+  wire kind=ctorName fields=camelCase schemaVersion=1
