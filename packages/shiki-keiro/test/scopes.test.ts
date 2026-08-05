@@ -211,6 +211,7 @@ const collisions = readFileSync(
 )
 const versionThree = readFileSync(resolve(repoRoot, 'corpus/language-version-3.keiro'), 'utf8')
 const versionFour = readFileSync(resolve(repoRoot, 'corpus/language-version-4.keiro'), 'utf8')
+const fieldAliases = readFileSync(resolve(repoRoot, 'corpus/field-aliases.keiro'), 'utf8')
 
 test('comments get the comment scope', () => {
   expectScope(sampler, '# keiro-dsl lexical sampler — comments, strings, numbers, durations, versions', 'comment.line.number-sign.keiro')
@@ -541,11 +542,13 @@ test('a version-3 nominal binding colours like any other nominal binding', () =>
 // keiro-dsl b49b11f marked version 4 the one `Stable` registry entry and versions 1-3
 // `CompatibilityOnly`, and changed `Keiro/Dsl/Skeleton.hs` so every `keiro new <kind>` starter
 // file opens `language keiro-dsl 4`. cd22e7f then migrated upstream's 225-file fixture corpus
-// onto it. Version 4 binds the SAME body grammar and syntax profile as versions 2 and 3, so it
-// adds no spelling; nothing in the grammar changed for this range. These assertions exist
-// because `4` is now the version an editor will meet most often and the corpus had never
-// carried it, and because the migration made the qualified enum member the standard way to
-// write an enum operand.
+// onto it. When these tests were written version 4 bound the SAME body grammar and syntax
+// profile as versions 2 and 3; keiro-dsl b31896cf has since rebound it to syntax profile 3,
+// whose one feature is the field-alias clause covered by the field-alias tests below — this
+// corpus file deliberately contains only version-2 surface, so nothing here moves. These
+// assertions exist because `4` is now the version an editor will meet most often and the
+// corpus had never carried it, and because the migration made the qualified enum member the
+// standard way to write an enum operand.
 
 test('the version-4 preamble version is an ordinary number', () => {
   // The preamble is on line 1 of this corpus file, so the first `4` found is the version.
@@ -582,6 +585,58 @@ test('a qualified enum member is a plain qualified name', () => {
   expect(scopes!.filter((s) => KEYWORDISH_SCOPES.has(s))).toEqual([])
   // The declaration site is different: there `EntryStatus` is a declared type name.
   expectScope(versionFour, 'EntryStatus', 'entity.name.type.keiro')
+})
+
+// --- Field aliases (keiro-dsl b31896cf) --------------------------------------
+//
+// Under `language keiro-dsl 4` — which that commit rebound to the new syntax profile 3, whose
+// one feature is FieldAliasSyntax — a field of an aggregate command/event or of a contract
+// event may carry `haskell <selector>` and `as "<wire-key>"` between its name and its `:`
+// type. Both markers are mapped-type words this grammar has matched unconditionally since
+// keiro-dsl 430c3d2, the selector is a plain identifier, and the wire key an ordinary string,
+// so no rule changed for this range; these assertions exist to keep the markers coloured in
+// the clause's two new grammatical homes.
+//
+// One helper caveat shapes these tests: expectWholeToken cannot be pointed at `as`, because
+// its find step matches by substring inclusion and `as` is a substring of `haskell`, which
+// precedes it on every full-alias line. `as` is asserted with expectScope instead, whose find
+// step requires trimmed equality — and corpus/field-aliases.keiro orders its fields so the
+// file's first bare `as` is the alias marker, not the field named `as` further down.
+
+test('the field alias markers get keyword.control in an aggregate field list', () => {
+  expectWholeToken(fieldAliases, 'haskell', 'keyword.control.keiro', 'type haskell payloadType:Text')
+  expectScope(fieldAliases, 'as', 'keyword.control.keiro')
+})
+
+test('the field alias markers get keyword.control in a contract field', () => {
+  expectWholeToken(fieldAliases, 'haskell', 'keyword.control.keiro', 'type haskell payloadType: text')
+})
+
+test('the alias selector identifier stays plain', () => {
+  // `serviceRegion` sits between the two claimed marker tokens, so it is its own unclaimed
+  // explanation entry. Nothing should claim it: it is a user-chosen Haskell selector name.
+  const scopes = scopesOf(fieldAliases, 'serviceRegion')
+  expect(scopes, 'the selector was not found in corpus/field-aliases.keiro').not.toBeNull()
+  expect(scopes!.filter((s) => KEYWORDISH_SCOPES.has(s))).toEqual([])
+})
+
+test('the alias wire key is an ordinary string', () => {
+  expectWholeToken(fieldAliases, 'region_code', 'string.quoted.double.keiro')
+})
+
+test('a field alias leaves its neighbours undisturbed', () => {
+  // The aliased field named `type` keeps the keyword colour the word has everywhere
+  // (Section 1's rule — upstream's own fixture leans on it), the types on both sides of the
+  // clause still colour, and the aggregate and contract around the aliases still tokenize.
+  expectWholeToken(fieldAliases, 'type', 'keyword.control.keiro', 'type haskell payloadType:Text')
+  expectScope(fieldAliases, 'Text', 'support.type.keiro')
+  expectScope(fieldAliases, 'aggregate', 'keyword.declaration.keiro')
+  expectScope(fieldAliases, 'goto', 'keyword.control.keiro')
+  expectScope(fieldAliases, 'contract', 'keyword.declaration.keiro')
+  expectScope(fieldAliases, 'topic', 'keyword.control.keiro')
+  expectScope(fieldAliases, 'typeid', 'support.type.keiro')
+  expectScope(fieldAliases, 'text', 'support.type.keiro')
+  expectScope(fieldAliases, 'int', 'support.type.keiro')
 })
 
 // --- Consumer-owned nominal bindings (keiro-dsl fcd6748) ---------------------

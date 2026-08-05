@@ -1,0 +1,43 @@
+language keiro-dsl 4
+context parcel-routing
+
+# keiro-dsl field aliases (keiro-dsl b31896cf, syntax profile 3, language version 4).
+# A field may carry a generated-selector alias and a wire-key alias between its name and
+# its type, in an aggregate command/event field list and in a contract event field. The
+# markers are the mapped-type words `haskell` and `as` in a second grammatical home, so
+# both packages already colour them; this file exists so the suites prove it. Two
+# vocabulary collisions are deliberate, copied from upstream's own fixtures: an aliased
+# field named `type`, and a field named `as`. The fields are ordered so the first bare
+# `as` in the file is the alias marker, which the Shiki suite's first-match helper
+# depends on.
+
+aggregate ParcelDesk
+  regs
+  states Accepting Dispatched!
+
+  command Observe {
+    family:Text
+    type haskell payloadType:Text
+    region haskell serviceRegion as "region_code":Text
+    as:Text
+  }
+  event Observed = fields(Observe)
+
+  Accepting -- Observe --> emit Observed ; goto Dispatched
+
+  wire kind=ctorName fields=camelCase schemaVersion=1
+
+contract parcelSignals {
+  schemaVersion 1
+  discriminator messageType
+
+  topic parcelEvents "parcel.routing.v1"
+
+  event ParcelObserved on parcelEvents {
+    parcelId: typeid "parcel"
+    family: text
+    type haskell payloadType: text
+    region haskell serviceRegion as "region_code": text
+    redCount: int
+  }
+}

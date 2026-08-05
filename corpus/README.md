@@ -206,6 +206,25 @@ The remaining files are **hand-written for this repository**:
   the TypeID prefix rule and its state names avoid its enum's member names, so pasting the file
   into `keiro check` is not a trap. It backs the reconciliation recorded in
   `docs/plans/15-record-keiro-dsl-language-version-4-as-the-stable-contract-and-cover-a-version-4-preamble-in-the-corpus.md`.
+- `field-aliases.keiro` — authored here (2026-08-05) to exercise the **field aliases**
+  keiro-dsl commit `b31896cf` added to language version 4 (the first feature of the new
+  syntax profile 3): an optional `haskell <selector>` and `as "<wire-key>"` between a
+  field's name and its type, legal on an aggregate command/event field and on a contract
+  event field. It is hand-written because no single upstream fixture spans both homes —
+  `keiro-dsl/test/fixtures/aggregate-field-alias.keiro` has the aggregate side only, and
+  the alias-carrying contract fields live in `keiro-dsl/test/fixtures/contract.keiro` and
+  its siblings, which have no aggregate. The alias spellings themselves are copied from
+  those fixtures, including the two vocabulary collisions upstream leans on deliberately:
+  an aliased command field *named* `type` (`type haskell payloadType:Text`) and a field
+  literally named `as` (`as:Text`) — both ordinary identifiers to the parser, both coloured
+  as keywords by Section 1 of `spec/keiro-dsl-language-model.md` working as designed. The
+  markers add no new word — `haskell` and `as` have been curated contextual keywords since
+  the mapped type declaration — so neither package needed a rule change; this file is where
+  both suites prove the markers colour as control keywords in the new positions, the
+  selector identifier stays plain, and the wire key stays a String. Its fields are ordered
+  so the file's first bare `as` is the alias marker, which the Shiki suite's first-match
+  helper depends on. It backs the reconciliation recorded in
+  `docs/plans/16-record-the-keiro-dsl-field-alias-syntax-haskell-as-on-aggregate-and-contract-fields-and-cover-it-in-the-corpus.md`.
 
 ## Rules for consumers
 

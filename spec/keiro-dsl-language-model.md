@@ -74,19 +74,28 @@ semantic check is not a lexical property, and the rule above still holds: an edi
 file while its author is fixing the diagnostic. `corpus/language-version-3.keiro` is the sample
 both packages tokenize to prove a third version value changes nothing.
 
-**Version 4 adds no spelling either, and it is the one version marked stable.** Its registry
-entry names the same body grammar and the same syntax profile as versions 2 and 3
-(`LanguageDefinition version4 (Just version3) LanguageBodyParserV2 profileV2 …`), so a version-4
-source is once again lexically a version-2 source that happens to write `4` in its preamble. What
-version 4 adds is a third runtime-semantics profile, which governs generated-code capabilities
-rather than notation. Since keiro-dsl commit `b49b11f` each registry entry also carries a
+**Version 4 is the one version marked stable, and — since keiro-dsl commit `b31896cf` — the
+first version since 2 to admit spellings its predecessors reject.** Its registry entry still
+names the version-2 body grammar, but no longer version 2's syntax profile: it reads
+`LanguageDefinition version4 (Just version3) LanguageBodyParserV2 profileV3 runtimeProfileV3 Stable`,
+where `profileV3` (`keiro-dsl/syntax-profile/3`) is version 2's profile plus one new
+`LanguageFeature` value, `FieldAliasSyntax`. That feature is the **field alias** clause described
+in its own subsection of Section 4 — an optional `haskell <identifier>` and `as "<string>"`
+between a field's name and its type, on aggregate command/event fields and on contract event
+fields. Crucially it adds no new *word*: `haskell` and `as` have been curated contextual
+keywords (Section 4) since the mapped type declaration arrived, so the highlighting rules that
+cover a version-4 source are exactly the ones that cover a version-2 source, and a source below
+version 4 that writes an alias is rejected with a `LanguageFeatureRequiresVersion` diagnostic at
+the marker word — a parser concern, per Section 1's standing rule. Version 4 also selects a
+third runtime-semantics profile, which governs generated-code capabilities rather than notation.
+Since keiro-dsl commit `b49b11f` each registry entry also carries a
 `LanguageSupport` value — `Stable` or `CompatibilityOnly` — and exactly one entry may be `Stable`:
 version 4 is, while versions 1 through 3 are `CompatibilityOnly`, retained so historical sources
-keep their released meaning. **A highlighter models neither the count nor the support status.**
-Both are registry facts, and the preamble's version stays an ordinary Number whatever its value
-and whatever its standing; a file opening `language keiro-dsl 1` must colour exactly as one
-opening `language keiro-dsl 4`, and a file naming a version that does not exist at all must still
-tokenize while its author fixes the diagnostic.
+keep their released meaning. **A highlighter models neither the count nor the support status nor
+the feature gate.** All three are registry facts, and the preamble's version stays an ordinary
+Number whatever its value and whatever its standing; a file opening `language keiro-dsl 1` must
+colour exactly as one opening `language keiro-dsl 4`, and a file naming a version that does not
+exist at all must still tokenize while its author fixes the diagnostic.
 
 The split is nonetheless worth knowing about, because it changed which version a reader will
 actually meet. `Keiro/Dsl/Skeleton.hs` writes the preamble of every starter file the
@@ -353,7 +362,11 @@ list and nothing else in it is ordered either. `nominal` and `using` (keiro-dsl 
 `fcd6748`) belong to the **nominal binding** forms described at the end of that subsection.
 `implementation` is the most recent arrival (keiro-dsl commit `8b0f55b`) and belongs to none of
 the mapped-type families: it opens an aggregate transition's `implementation hole` clause,
-described in "The scalar expression sublanguage" below.
+described in "The scalar expression sublanguage" below. Since keiro-dsl commit `b31896cf` two of
+the mapped-type words, `haskell` and `as`, also serve a second grammar: they are the **field
+alias** markers on aggregate command/event fields and contract event fields, described in "Field
+aliases on aggregate and contract fields" at the end of this section. That gave the words a new
+home without adding a word to this grid.
 
 ### Dashed contextual keywords (match-before-bare-words)
 
@@ -757,6 +770,53 @@ Six facts a highlighter implementer needs.
   `AggregateTransitionOwnershipConflict`, from a source the parser accepted. As with the
   aggregate type slots above, a highlighter colors what the semantic pass will later reject.
 
+### Field aliases on aggregate and contract fields
+
+Since keiro-dsl commit `b31896cf` a source declaring `language keiro-dsl 4` may give a field up
+to two optional **aliases** between its name and its `:` type: a generated-Haskell
+record-selector alias introduced by the word `haskell`, and a serialized wire-key alias
+introduced by the word `as`. The clause exists in two productions — an **aggregate
+command/event field** (parser `pAggregateField` in `Parser/Aggregate.hs`, where the `:` type
+was already optional) and a **contract event field** (parser `pContractField` inside
+`pContract` in `Parser/Integration.hs`, where the `:` type is mandatory and is one of
+`typeid "…"`, `text`, or `int`):
+
+```text
+command Observe {
+  family:Text
+  type haskell payloadType:Text
+  region haskell serviceRegion as "region_code":Text
+}
+
+event ParcelObserved on parcelEvents {
+  parcelId: typeid "parcel"
+  region haskell serviceRegion as "region_code": text
+}
+```
+
+Semantically the logical DSL name (`region`) stays the identity used by expressions and
+evolution pairing, the selector (`serviceRegion`) names the generated Haskell record selector,
+and the wire key (`"region_code"`) names the serialized JSON key — none of which a highlighter
+models. Three facts an implementer needs:
+
+- **No word here is new, so no rule changes.** `haskell` and `as` are the same curated Control
+  / section keywords the mapped type declaration supplied (this section's bare grid, both
+  matched unconditionally by both packages since then). The selector is an ordinary plain
+  identifier and takes no class; the wire key is an ordinary **String** (Section 2). This is
+  the same shape as the widened aggregate type slots above: existing spellings in a new
+  position, already covered because a word is a keyword by membership, not by position.
+- **The gate is a registry fact, not a lexical one.** The clause is legal only under the
+  `FieldAliasSyntax` feature of syntax profile 3, which exactly one released version carries:
+  version 4 (see Section 1). Below version 4 the parser rejects the marker word with a
+  `LanguageFeatureRequiresVersion` diagnostic (helper `optionalLanguageFeature`), and an editor
+  must still tokenize the file while its author fixes the version line.
+- **Upstream leans on the vocabulary collisions, deliberately.** Its own fixtures alias a
+  field *named* `type` (`type haskell payloadType:Text`) and declare a field literally named
+  `as` (`as:Text`); both parse because neither word is reserved, and both packages colour both
+  words as keywords wherever they appear — Section 1's lexical-highlighting rule working as
+  designed, exactly as `initial`, `key`, and `value` before them. `corpus/field-aliases.keiro`
+  reproduces both collisions so the suites pin them.
+
 
 ## Section 5 — Operators and punctuation
 
@@ -801,7 +861,7 @@ to. Both packages must classify the identical literal words into the keyword cla
 | Token class | Members / pattern | TextMate scope | Vim group |
 |---|---|---|---|
 | Declaration introducer | the subset of reserved + contextual words that begin a top-level item or node: `language` (the version preamble, which begins the only clause outside the spec body — see Section 4), `context`, `id`, `enum`, `rule`, `mapped`, `aggregate`, `process`, `router`, `contract`, `intake`, `emit`, `publisher`, `workqueue`, `dispatch`, `readmodel`, `workflow`, `operation` | `keyword.declaration.keiro` | `Keyword` |
-| Control / section keyword | all other reserved keywords (Section 3) **and** all curated contextual keywords (Section 4) *except the words the Modifier and Language-constant rows below claim*, e.g. `regs`, `states`, `command`, `event`, `wire`, `guard`, `write`, `goto`, `snapshot`, `module`, `layout`, `resolve`, `dispatch-each`, `read-model`, `category`, `persist`, `patch`, `continueAsNew`, `columns`, `feed`, `scope`, `shape`, `on`, `advance`, `schedule`, `timer`, `bind`, `accept`, `map`, `step`, `await`, the version preamble's dialect name `keiro-dsl` (dashed — see Section 4), and the mapped-type vocabulary `haskell`, `package`, `type`, `binding`, `binding-version`, `canonical-type`, `codec`, `fixtures`, `initial`, `object`, `constructor`, `string`, `tagged-object`, `tag`, `contents`, `as`, `unknown-fields`, `reject`, `ignore`, `on-missing`, and the nominal-binding clause word `using` (which attaches a consumer binding block to an `id` or `enum` declaration — see Section 4), the transition clause word `implementation` (of `implementation hole`; its second word `hole` is a Language constant, one row down), and the two scalar-expression roots `reg` and `cmd` — which, uniquely in this table, are matched **only when the next character is a `.`**, so `reg.balance` is a keyword and the wire word in `id CommandId prefix=cmd` is not (see Section 4), ... | `keyword.control.keiro` | `Statement` |
+| Control / section keyword | all other reserved keywords (Section 3) **and** all curated contextual keywords (Section 4) *except the words the Modifier and Language-constant rows below claim*, e.g. `regs`, `states`, `command`, `event`, `wire`, `guard`, `write`, `goto`, `snapshot`, `module`, `layout`, `resolve`, `dispatch-each`, `read-model`, `category`, `persist`, `patch`, `continueAsNew`, `columns`, `feed`, `scope`, `shape`, `on`, `advance`, `schedule`, `timer`, `bind`, `accept`, `map`, `step`, `await`, the version preamble's dialect name `keiro-dsl` (dashed — see Section 4), and the mapped-type vocabulary `haskell`, `package`, `type`, `binding`, `binding-version`, `canonical-type`, `codec`, `fixtures`, `initial`, `object`, `constructor`, `string`, `tagged-object`, `tag`, `contents`, `as`, `unknown-fields`, `reject`, `ignore`, `on-missing` (of which `haskell` and `as` are, since keiro-dsl `b31896cf`, also the field-alias markers on aggregate and contract fields — see Section 4), and the nominal-binding clause word `using` (which attaches a consumer binding block to an `id` or `enum` declaration — see Section 4), the transition clause word `implementation` (of `implementation hole`; its second word `hole` is a Language constant, one row down), and the two scalar-expression roots `reg` and `cmd` — which, uniquely in this table, are matched **only when the next character is a `.`**, so `reg.balance` is a keyword and the wire word in `id CommandId prefix=cmd` is not (see Section 4), ... | `keyword.control.keiro` | `Statement` |
 | Modifier | `deprecated`, `retiring` (the two mutually exclusive event prefixes — see Section 3), `upcast`, `from`, `consistency`, `required`, `stable`, `strategy`, `via`, `policy`, `prefix`, `kind`, the mapped-type words `structural`, `opaque`, `nominal`, `record`, `union` (which select the family and shape of a `mapped` declaration) and `optional` (`required`'s partner on a wire field — see Section 4), and the dashed `replay-only` (the transition prefix — see Section 4; being dashed it must be matched before bare words) | `storage.modifier.keiro` | `StorageClass` |
 | Language constant | `true`, `false`, `null` (the `on-missing=null` sentinel — see Section 4), `HOLE`, `placeholder`, `skip`, `hole` (three parser sites: a contract emitter's `derive "…" hole`, a router's `resolve … hole`, and — since keiro-dsl `8b0f55b` — the second word of a transition's `implementation hole` clause, whose first word is a Control keyword one row up) | `constant.language.keiro` (give `true` / `false` the more specific `constant.language.boolean.keiro`; `null` takes the general scope) | `Boolean` for `true` / `false`, else `Constant` |
 | Primitive type | `Bool`, `Int`, `Integer` (a distinct spelling from `Int`, not an alias — keiro-dsl `8b0f55b`), `Text`, `Time`, `Id`, `Maybe`, `typeid`, `text`, `int`, and the mapped-type spellings `Natural`, `UTCTime` (an alias for `Time`), `Json`, `Optional`, `List`, `Map` (see Section 4 — `Map` capitalized is a type, the reserved lowercase `map` is a control keyword, and both packages match case-sensitively). These are matched **unconditionally, everywhere**, not only inside a `mapped` declaration: since keiro-dsl `da09736` the same type grammar is also an aggregate register's and an aggregate command/event field's type slot (Section 4) | `support.type.keiro` | `Type` |

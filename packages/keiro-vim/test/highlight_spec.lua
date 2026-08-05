@@ -492,10 +492,13 @@ expect('prefix=ledger', 'keiroModifier')
 -- The stable fourth language version (keiro-dsl b49b11f, cd22e7f). b49b11f marked version 4 the
 -- one `Stable` registry entry and versions 1-3 `CompatibilityOnly`, and changed
 -- `Keiro/Dsl/Skeleton.hs` so every `keiro new <kind>` starter file opens `language keiro-dsl 4`;
--- cd22e7f then migrated upstream's 225-file fixture corpus onto it. Version 4 binds the SAME
--- body grammar and syntax profile as versions 2 and 3, so it adds no spelling and this range
--- needed no syntax-file edit. These assertions exist because `4` is now the version an editor
--- will meet most often and the corpus had never carried it.
+-- cd22e7f then migrated upstream's 225-file fixture corpus onto it. When these assertions were
+-- written version 4 bound the SAME body grammar and syntax profile as versions 2 and 3;
+-- keiro-dsl b31896cf has since rebound it to syntax profile 3, whose one feature is the
+-- field-alias clause covered over corpus/field-aliases.keiro below — this corpus file
+-- deliberately contains only version-2 surface, so nothing here moves. These assertions exist
+-- because `4` is now the version an editor will meet most often and the corpus had never
+-- carried it.
 --
 -- Like the version-3 file, this corpus file puts the preamble on line 1 with its comment banner
 -- *below*, because expect() reads the first line containing the literal and a `4` in a banner
@@ -530,6 +533,49 @@ expect('prefix=entry', 'keiroModifier')
 expect_no_group('== EntryStatus.Active', 3)   -- the 'E' of the qualifier
 expect_no_group('== EntryStatus.Active', 14)  -- the '.' itself
 expect_no_group('== EntryStatus.Active', 15)  -- the 'A' of the member
+
+-- Field aliases (keiro-dsl b31896cf). Under `language keiro-dsl 4` — which that commit rebound
+-- to the new syntax profile 3, whose one feature is FieldAliasSyntax — a field of an aggregate
+-- command/event or of a contract event may carry `haskell <selector>` and `as "<wire-key>"`
+-- between its name and its `:` type. Both markers are mapped-type words keiro.vim has matched
+-- unconditionally since keiro-dsl 430c3d2, the selector is a plain identifier, and the wire key
+-- an ordinary string, so no syntax-file edit was needed; these assertions keep the markers
+-- coloured in the clause's two new grammatical homes.
+--
+-- Anchoring matters twice over here. expect() and expect_uniform() find the first line
+-- containing the anchor, so the aggregate lines (type `:Text`, no space) and the contract lines
+-- (`: text`, spaced, lowercase) are told apart by their type spelling. And an expect_uniform
+-- anchor for the bare word `as` must *start* with `as`, because the anchored word is matched
+-- from the anchor's own column and `as` is a substring of the `haskell` that precedes it on
+-- every full-alias line.
+open('corpus/field-aliases.keiro')
+expect('# keiro-dsl field aliases', 'keiroComment')
+expect('language keiro-dsl 4', 'keiroKeyword')
+-- The aggregate field list: both markers, whole-word.
+expect('haskell payloadType', 'keiroStatement')
+expect_uniform('haskell', 'keiroStatement', 'type haskell payloadType:Text')
+expect('as "region_code"', 'keiroStatement')
+expect_uniform('as', 'keiroStatement', 'as "region_code"')
+-- The wire key is an ordinary string, and the selector between the markers stays plain.
+expect('"region_code"', 'keiroString')
+expect_no_group('payloadType:Text', 0)
+expect_no_group('serviceRegion', 0)
+-- The two vocabulary collisions upstream's own fixtures lean on: an aliased field *named*
+-- `type`, and a field literally named `as`. Neither word is reserved; both keep the keyword
+-- colour the words have everywhere (Section 1 of spec/keiro-dsl-language-model.md).
+expect_uniform('type', 'keiroStatement', 'type haskell payloadType:Text')
+expect_uniform('as', 'keiroStatement', 'as:Text')
+-- The contract field list: the same clause before a mandatory `typeid`/`text`/`int` type.
+expect_uniform('haskell', 'keiroStatement', 'type haskell payloadType: text')
+expect_uniform('as', 'keiroStatement', 'as "region_code": text')
+expect('typeid "parcel"', 'keiroType')
+expect_uniform('text', 'keiroType', 'family: text')
+expect_uniform('int', 'keiroType', 'redCount: int')
+-- The aggregate and contract around the aliases are undisturbed.
+expect('contract parcelSignals', 'keiroKeyword')
+expect('emit Observed', 'keiroKeyword')
+expect('goto Dispatched', 'keiroStatement')
+expect('-->', 'keiroOperator')
 
 -- The regression guard for the whole follow-'.' decision on the two roots. `cmd` is a
 -- user-chosen wire word in five corpus files (`id CommandId prefix=cmd`), and an unconditional
