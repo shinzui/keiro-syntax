@@ -24,9 +24,12 @@ marker="spec/.keiro-dsl-sync"
 subject_file=".keiro-dsl-sync-subject"
 lock_dir=".git/keiro-dsl-sync.lock"
 
-# Mirror of the ChangesetSelector paths in keiro's mori.automation.dhall.
+# Mirror of the ChangesetSelector paths in keiro's
+# automation/keiro-dsl-changed-notification.dhall. Parser/ holds the parser
+# modules, including Parser/Core.hs and its `reservedWords`.
 watched=(
   "keiro-dsl/src/Keiro/Dsl/Parser.hs"
+  "keiro-dsl/src/Keiro/Dsl/Parser"
   "keiro-dsl/src/Keiro/Dsl/Grammar.hs"
   "keiro-dsl/src/Keiro/Dsl/PrettyPrint.hs"
   "keiro-dsl/test/fixtures"
@@ -107,9 +110,11 @@ You are running unattended as the \`sync-keiro-dsl\` mori automation in the
 keiro-syntax repository ($repo_root). A change landed in keiro-dsl, the parser for
 the .keiro language that this repo provides syntax highlighting for.
 
-Source of truth: ${keiro_path}/keiro-dsl/src/Keiro/Dsl/Parser.hs -- specifically its
-\`reservedWords\` list, the comment/string/number/identifier lexing rules, and the
-operators. spec/keiro-dsl-language-model.md in THIS repo states that its keyword list is
+Source of truth: the keiro-dsl parser -- ${keiro_path}/keiro-dsl/src/Keiro/Dsl/Parser.hs
+and the modules under ${keiro_path}/keiro-dsl/src/Keiro/Dsl/Parser/. Specifically the
+\`reservedWords\` list in Parser/Core.hs, the comment/string/number/identifier lexing
+rules, and the operators, plus any \`keyword "..."\` or \`symbol "..."\` literal in the
+per-construct parser modules. spec/keiro-dsl-language-model.md in THIS repo states that its keyword list is
 copied verbatim from \`reservedWords\` and must match it exactly.
 
 Your job is to reconcile this repo with ${scope}.
