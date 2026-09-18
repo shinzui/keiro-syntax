@@ -1,0 +1,167 @@
+language keiro-dsl 5
+context catalog-demo
+
+enum OrderRejection { AlreadyClosed=already-closed }
+enum OrderNoOp { DuplicateRequest=duplicate-request }
+
+target order_summary {
+  schema = "sales"
+  table = "order_summary"
+  reset = clear
+}
+
+target order_totals {
+  schema = "sales"
+  table = "order_totals"
+  reset = clear
+  depends-on = [ order_summary ]
+}
+
+target audit_log {
+  schema = "sales"
+  table = "audit_log"
+  reset = preserve
+}
+
+rebuild-group reporting {
+  targets = [ order_summary order_totals ]
+  order = [ order_summary order_totals ]
+}
+
+rebuild-group auditing {
+  targets = [ audit_log ]
+  order = [ audit_log ]
+}
+
+projection-revision reporting_v1 {
+  group = reporting
+  target order_summary {
+    schema-version = "v1"
+    provisioner = "reporting-v1-order-summary"
+    provisioner-version = 1
+    expected-shape = "order-summary-v1"
+    validator = "reporting-v1-order-summary-validator"
+    validator-version = 1
+    promotion index "order_summary_status_idx__v1" -> "order_summary_status_idx"
+    promotion constraint "order_summary_pkey__v1" -> "order_summary_pkey"
+  }
+  target order_totals {
+    schema-version = "v1"
+    provisioner = "reporting-v1-order-totals"
+    provisioner-version = 1
+    expected-shape = "order-totals-v1"
+    validator = "reporting-v1-order-totals-validator"
+    validator-version = 1
+    promotion owned-sequence "order_totals_id_seq__v1" -> "order_totals_id_seq"
+  }
+}
+
+projection-owner order_summary_writer {
+  source = aggregate Orders
+  delivery = inline
+  group = reporting
+  targets = [ order_summary order_totals ]
+  order = 10
+  replay = explicit
+}
+
+projection-owner audit_writer {
+  source = all
+  delivery = subscription
+  group = auditing
+  targets = [ audit_log ]
+  order = 20
+  subscription = "catalog-demo-audit"
+  dedup = "catalog-demo-audit-v1"
+  checkpoint-on-missing = from-current-head
+  replay = live-only "audit events cannot be replayed"
+}
+
+readmodel order_lookup {
+  columns {
+    order_id text required
+  }
+  query input = Text
+  query result = Optional Natural
+  version = 1
+  shape = "fnv1a:784e511a19f74c58"
+  freshness = immediate
+  group = reporting
+  targets = [ order_summary ]
+  backing = order_summary
+}
+
+readmodel audit_lookup {
+  columns {
+    event_id text required
+  }
+  version = 1
+  shape = "fnv1a:9682af3ada04bf50"
+  freshness = wait-for-head entire-log
+  group = auditing
+  targets = [ audit_log ]
+}
+
+external-read order_reader {
+  version = 1
+  query = order_lookup
+  result-schema = "app_contract"
+  result-type = "order_row_v1"
+  compatible-revisions = [ reporting_v1 ]
+  surface-generation = 1
+}
+
+workqueue order_jobs {
+  queue logical = "catalog-demo.order-jobs"
+  derive physical = "catalog_demo_order_jobs"
+         dlq = "catalog_demo_order_jobs_dlq"
+         table = "pgmq.q_catalog_demo_order_jobs"
+
+  payload OrderJob {
+    orderId  -> "order_id" : Text
+    urgent   -> "urgent"   bool
+    attempt  -> "attempt"  int
+  }
+
+  retry maxRetries = 3 delay = 1s dlq = on
+
+  disposition {
+    storeFailure -> retry 1s
+    commandRejected -> deadLetter
+    decodeFailure -> deadLetter
+    onCodecReject -> deadLetter
+  }
+}
+
+aggregate Orders
+  domain-outcomes rejection=OrderRejection no-op=OrderNoOp
+  regs
+    lastRequestId Text = "none"
+  states Open Closed
+
+  command Close { requestId:Text }
+  event Closed = fields(Close)
+
+  Open -- Close -->
+    write lastRequestId := cmd.requestId
+    outcome accepted
+    emit Closed
+    goto Closed
+
+  Closed -- Close -->
+    guard cmd.requestId != reg.lastRequestId
+    outcome rejected OrderRejection.AlreadyClosed
+    goto Closed
+
+  Closed -- Close -->
+    guard cmd.requestId == reg.lastRequestId
+    outcome no-op OrderNoOp.DuplicateRequest
+    goto Closed
+
+  wire kind=ctorName fields=camelCase schemaVersion=1
+
+# keiro-dsl Language 5 sample: the projection catalog (four dashed top-level
+# introducers plus bare `target`), readmodel freshness and query types, the
+# external read contract, a typed workqueue payload, and domain command outcomes.
+# This banner sits at the END of the file so the suites' first-match anchors
+# land on code rather than on these words.

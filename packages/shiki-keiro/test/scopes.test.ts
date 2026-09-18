@@ -212,6 +212,14 @@ const collisions = readFileSync(
 const versionThree = readFileSync(resolve(repoRoot, 'corpus/language-version-3.keiro'), 'utf8')
 const versionFour = readFileSync(resolve(repoRoot, 'corpus/language-version-4.keiro'), 'utf8')
 const fieldAliases = readFileSync(resolve(repoRoot, 'corpus/field-aliases.keiro'), 'utf8')
+const languageFive = readFileSync(
+  resolve(repoRoot, 'corpus/language-version-5-projection-catalog.keiro'),
+  'utf8',
+)
+const languageSix = readFileSync(
+  resolve(repoRoot, 'corpus/language-version-6-reactions-and-selection.keiro'),
+  'utf8',
+)
 
 test('comments get the comment scope', () => {
   expectScope(sampler, '# keiro-dsl lexical sampler — comments, strings, numbers, durations, versions', 'comment.line.number-sign.keiro')
@@ -920,6 +928,143 @@ test('the collisions file tokenizes normally around the colliding names', () => 
   expectScope(collisions, '-->', 'keyword.operator.keiro')
 })
 
+// --- The Language 5 and 6 surface (keiro-dsl d7be0fe6..9fb54d56) -------------------------
+//
+// 63 new words, none reserved: the projection catalog, readmodel freshness and query types, the
+// external read contract, domain command outcomes, process reactions, declarative router
+// selection, delegated intake idempotence, and `ordering fifo-heads`. The word-list guards at
+// the bottom of this file prove each word is claimed whole by *some* keyword scope; these tests
+// pin the class each one takes and that the constructs tokenize in real code. Both corpus files
+// keep their comment banner at the end, so the first-match helpers land on code.
+
+test('the dashed projection-catalog declarations get keyword.declaration as one whole word', () => {
+  // The bare `projection` heads two of these, so #dashed-introducers must win the same-position
+  // tie against #control-keywords.
+  for (const word of ['rebuild-group', 'projection-revision', 'projection-owner', 'external-read']) {
+    expectWholeToken(languageFive, word, 'keyword.declaration.keiro')
+  }
+})
+
+test('the catalog target declaration keeps its control scope', () => {
+  expectWholeToken(languageFive, 'target', 'keyword.control.keiro', 'target order_summary {')
+})
+
+test('projection-catalog clause labels and values get keyword.control', () => {
+  expectWholeToken(languageFive, 'reset', 'keyword.control.keiro', 'reset = clear')
+  expectWholeToken(languageFive, 'clear', 'keyword.control.keiro', 'reset = clear')
+  expectWholeToken(languageFive, 'preserve', 'keyword.control.keiro', 'reset = preserve')
+  expectWholeToken(languageFive, 'depends-on', 'keyword.control.keiro')
+  expectWholeToken(languageFive, 'targets', 'keyword.control.keiro', 'targets = [')
+  expectWholeToken(languageFive, 'order', 'keyword.control.keiro', 'order = [')
+  expectWholeToken(languageFive, 'schema', 'keyword.control.keiro', 'schema = "sales"')
+  expectWholeToken(languageFive, 'schema-version', 'keyword.control.keiro')
+  expectWholeToken(languageFive, 'provisioner', 'keyword.control.keiro', 'provisioner = ')
+  expectWholeToken(languageFive, 'provisioner-version', 'keyword.control.keiro')
+  expectWholeToken(languageFive, 'expected-shape', 'keyword.control.keiro')
+  expectWholeToken(languageFive, 'validator', 'keyword.control.keiro', 'validator = ')
+  expectWholeToken(languageFive, 'validator-version', 'keyword.control.keiro')
+  expectWholeToken(languageFive, 'promotion', 'keyword.control.keiro', 'promotion index')
+  expectWholeToken(languageFive, 'index', 'keyword.control.keiro', 'promotion index')
+  expectWholeToken(languageFive, 'constraint', 'keyword.control.keiro', 'promotion constraint')
+  expectWholeToken(languageFive, 'owned-sequence', 'keyword.control.keiro')
+  expectWholeToken(languageFive, 'all', 'keyword.control.keiro', 'source = all')
+  expectWholeToken(languageFive, 'delivery', 'keyword.control.keiro', 'delivery = inline')
+  expectWholeToken(languageFive, 'subscription', 'keyword.control.keiro', 'delivery = subscription')
+  expectWholeToken(languageFive, 'replay', 'keyword.control.keiro', 'replay = explicit')
+  expectWholeToken(languageFive, 'explicit', 'keyword.control.keiro', 'replay = explicit')
+  expectWholeToken(languageFive, 'live-only', 'keyword.control.keiro')
+  expectWholeToken(languageFive, 'checkpoint-on-missing', 'keyword.control.keiro')
+  // `from` is a Modifier that heads this dashed Control value.
+  expectWholeToken(languageFive, 'from-current-head', 'keyword.control.keiro')
+})
+
+test('readmodel freshness, backing, and query types tokenize', () => {
+  expectWholeToken(languageFive, 'freshness', 'keyword.control.keiro', 'freshness = immediate')
+  expectWholeToken(languageFive, 'immediate', 'keyword.control.keiro', 'freshness = immediate')
+  expectWholeToken(languageFive, 'wait-for-head', 'keyword.control.keiro')
+  expectWholeToken(languageFive, 'entire-log', 'keyword.control.keiro')
+  expectWholeToken(languageFive, 'backing', 'keyword.control.keiro')
+  expectWholeToken(languageFive, 'query', 'keyword.control.keiro', 'query input = Text')
+  expectWholeToken(languageFive, 'result', 'keyword.control.keiro', 'query result = ')
+  expectWholeToken(languageFive, 'Optional', 'support.type.keiro', 'query result = ')
+})
+
+test('the external read contract labels get keyword.control as whole words', () => {
+  for (const word of ['result-schema', 'result-type', 'compatible-revisions', 'surface-generation']) {
+    expectWholeToken(languageFive, word, 'keyword.control.keiro')
+  }
+})
+
+test('the lowercase bool payload type gets support.type', () => {
+  expectWholeToken(languageFive, 'bool', 'support.type.keiro', '"urgent"')
+})
+
+test('domain command outcomes tokenize', () => {
+  expectWholeToken(languageFive, 'domain-outcomes', 'keyword.control.keiro')
+  expectWholeToken(languageFive, 'rejection', 'keyword.control.keiro', 'domain-outcomes')
+  expectWholeToken(languageFive, 'no-op', 'keyword.control.keiro', 'domain-outcomes')
+  expectWholeToken(languageFive, 'accepted', 'keyword.control.keiro', 'outcome accepted')
+  expectWholeToken(languageFive, 'rejected', 'keyword.control.keiro', 'outcome rejected')
+  expectWholeToken(languageFive, 'no-op', 'keyword.control.keiro', 'outcome no-op')
+  expectScope(languageFive, 'aggregate', 'keyword.declaration.keiro')
+  expectScope(languageFive, '-->', 'keyword.operator.keiro')
+})
+
+test('process reactions tokenize', () => {
+  expectWholeToken(languageSix, 'reactions', 'keyword.control.keiro', 'reactions version 1')
+  expectWholeToken(languageSix, 'when', 'keyword.control.keiro', 'when input.severity')
+  expectWholeToken(languageSix, 'otherwise', 'keyword.control.keiro')
+  expectWholeToken(languageSix, 'accepted', 'keyword.control.keiro', '        accepted')
+  expectWholeToken(languageSix, 'silent', 'storage.modifier.keiro', 'silent no-action')
+  expectWholeToken(languageSix, 'no-action', 'keyword.control.keiro', 'silent no-action')
+  expectWholeToken(languageSix, 'once', 'storage.modifier.keiro', 'schedule reminder once')
+  expectWholeToken(languageSix, 'cancel', 'keyword.control.keiro', 'cancel reminder')
+  expectWholeToken(languageSix, 'timers', 'keyword.control.keiro', 'timers max-attempts')
+  expectWholeToken(languageSix, 'max-attempts', 'keyword.control.keiro', 'timers max-attempts')
+  expectWholeToken(languageSix, '5m', 'constant.numeric.keiro')
+})
+
+test('declarative router selection tokenizes', () => {
+  expectWholeToken(languageSix, 'declarative', 'storage.modifier.keiro', 'resolve declarative')
+  expectWholeToken(languageSix, 'identity', 'keyword.control.keiro')
+  expectWholeToken(languageSix, 'read-model', 'keyword.control.keiro', 'query = read-model')
+  expectWholeToken(languageSix, 'with', 'keyword.control.keiro', 'template_lookup with input')
+  expectWholeToken(languageSix, 'where', 'keyword.control.keiro', 'where = ')
+  expectWholeToken(languageSix, 'recipient', 'keyword.control.keiro', 'recipient = ')
+  expectWholeToken(languageSix, 'max-recipients', 'keyword.control.keiro')
+  expectWholeToken(languageSix, 'empty', 'keyword.control.keiro', 'empty => ack')
+  expectWholeToken(languageSix, 'ack', 'keyword.control.keiro', 'empty => ack')
+  expectWholeToken(languageSix, 'failure', 'keyword.control.keiro', 'failure => retry')
+  expectWholeToken(languageSix, 'redelivery', 'keyword.control.keiro')
+})
+
+test('router selection policy values are not parser literals', () => {
+  // `stable-union` is two identifiers joined by `-`, checked later against a fixed value, so no
+  // rule claims the whole spelling: it renders segment by segment, with `stable` and `union`
+  // keeping the Modifier scope they have everywhere and the dash left as plain text.
+  expectWholeToken(languageSix, 'stable', 'storage.modifier.keiro', 'redelivery = stable-union')
+  expectWholeToken(languageSix, 'union', 'storage.modifier.keiro', 'redelivery = stable-union')
+  const lines = hl.codeToTokensBase(languageSix, {
+    lang: 'keiro',
+    theme: 'github-light',
+    includeExplanation: true,
+  })
+  const line = lines
+    .map((l) => l.flatMap((t) => t.explanation ?? []))
+    .find((parts) => parts.map((p) => p.content).join('').includes('redelivery = stable-union'))
+  const dash = line!.find((p) => p.content === '-')
+  expect(dash, 'the dash of stable-union should be its own plain token').toBeDefined()
+  expect(dash!.scopes.map((s) => s.scopeName).filter((s) => KEYWORDISH_SCOPES.has(s))).toEqual([])
+})
+
+test('the remaining Language 6 spellings tokenize', () => {
+  expectWholeToken(languageSix, 'idempotence', 'keyword.control.keiro')
+  expectWholeToken(languageSix, 'delegated', 'keyword.control.keiro')
+  expectWholeToken(languageSix, 'fifo-heads', 'keyword.control.keiro')
+  // The keyed map: `Map` is still a type and the brackets stay plain.
+  expectWholeToken(languageSix, 'Map', 'support.type.keiro', 'Map[TemplateId]')
+})
+
 // --- Spec word-list coverage guards -----------------------------------------
 //
 // `retiring` joined the parser's `reservedWords` in keiro-dsl 75286d7 without changing how
@@ -939,20 +1084,21 @@ test('the spec Section 3 list holds the parser 72 reserved words', () => {
   expect(reservedWordsFromSpec().length).toBe(72)
 })
 
-test('the spec Section 4 lists 100 bare and 32 dashed contextual keywords', () => {
+test('the spec Section 4 lists 139 bare and 56 dashed contextual keywords', () => {
   // 96 -> 97 and 31 -> 32 at keiro-dsl 4523b52, which added the version preamble's `language`
   // (bare) and `keiro-dsl` (dashed). 97 -> 99 at keiro-dsl fcd6748, which added the nominal
   // binding words `nominal` and `using`, both bare. 99 -> 100 at keiro-dsl 8b0f55b, which added
-  // the transition clause word `implementation`. Section 3 is unchanged throughout: none of
-  // those five words is reserved.
+  // the transition clause word `implementation`. 100 -> 139 and 32 -> 56 at keiro-dsl 9fb54d56,
+  // the Language 5 and 6 surface: 39 bare and 24 dashed words (the four dashed projection-catalog
+  // introducers among them). Section 3 is unchanged throughout: none of those words is reserved.
   //
   // The scalar expression roots `reg` and `cmd` are deliberately NOT in the bare grid, even
   // though both packages colour them: this guard probes each grid word in a one-word document,
   // where a root correctly is not a keyword because no `.` follows it. They are covered by the
   // hand-named assertions above instead.
   const { bare, dashed } = contextualWordsFromSpec()
-  expect(bare.length).toBe(100)
-  expect(dashed.length).toBe(32)
+  expect(bare.length).toBe(139)
+  expect(dashed.length).toBe(56)
 })
 
 test('every reserved word is classified as a keyword by the grammar', () => {

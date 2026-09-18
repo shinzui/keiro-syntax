@@ -5,6 +5,7 @@
   "patterns": [
     { "include": "#comments" },
     { "include": "#strings" },
+    { "include": "#dashed-introducers" },
     { "include": "#dashed-keywords" },
     { "include": "#dashed-modifiers" },
     { "include": "#decl-with-name" },
@@ -33,8 +34,13 @@
     },
     "dashed-keywords": {
       "comment": "`keiro-dsl` is the dialect name in the `language keiro-dsl 1` version preamble. It is the one entry here whose leading segment is not itself a keyword, so it needs no ordering care beyond being in this rule at all — without it the spelling falls through as plain text.",
-      "match": "(?<![A-Za-z0-9_-])(?:status-map|dispatch-id|fired-event-id|dispatch-each|read-model|keiro-dsl|on-appended|on-duplicate|on-failed|on-ok|on-reject|on-error|on-ambiguous|on-blocked|on-terminal|on-missing|not-mine|unknown-status|unknown-fields|max-attempts|dead-letter|kafka-key|kafka-cursor|cross-check|state-codec|shape-hash|full-envelope|dedupe-only|entire-log|fifo-throughput|fifo-roundrobin|binding-version|canonical-type|tagged-object)(?![A-Za-z0-9_-])",
+      "match": "(?<![A-Za-z0-9_-])(?:status-map|dispatch-id|fired-event-id|dispatch-each|read-model|keiro-dsl|on-appended|on-duplicate|on-failed|on-ok|on-reject|on-error|on-ambiguous|on-blocked|on-terminal|on-missing|not-mine|unknown-status|unknown-fields|max-attempts|dead-letter|kafka-key|kafka-cursor|cross-check|state-codec|shape-hash|full-envelope|dedupe-only|entire-log|fifo-throughput|fifo-roundrobin|binding-version|canonical-type|tagged-object|depends-on|schema-version|provisioner-version|expected-shape|validator-version|owned-sequence|result-schema|result-type|compatible-revisions|surface-generation|checkpoint-on-missing|from-beginning|from-current-head|live-only|wait-for-head|fifo-heads|domain-outcomes|no-op|no-action|max-recipients)(?![A-Za-z0-9_-])",
       "name": "keyword.control.keiro"
+    },
+    "dashed-introducers": {
+      "comment": "The four dashed Language-5 projection-catalog declarations (keiro-dsl d7be0fe6..9fb54d56, Parser/ProjectionCatalog.hs). They begin top-level items, so they are introducers. Listed before #control-keywords so the dashed spelling wins the same-position tie against the bare `projection`. The fifth catalog declaration, `target`, keeps its control scope: a lexical grammar cannot tell it from the clause word.",
+      "match": "(?<![A-Za-z0-9_-])(?:rebuild-group|projection-revision|external-read|projection-owner)(?![A-Za-z0-9_-])",
+      "name": "keyword.declaration.keiro"
     },
     "dashed-modifiers": {
       "match": "(?<![A-Za-z0-9_-])(?:replay-only)(?![A-Za-z0-9_-])",
@@ -62,7 +68,7 @@
     },
     "modifiers": {
       "comment": "`nominal` joins `structural` and `opaque` as a `mapped` family word: `pMappedTopItem` upstream reads `keyword \"mapped\"` and then chooses between the three, so all three qualify the declaration `mapped` introduces rather than introducing one.",
-      "match": "(?<![A-Za-z0-9_])(?:deprecated|retiring|upcast|from|consistency|required|optional|stable|strategy|via|policy|prefix|kind|structural|opaque|nominal|record|union)(?![A-Za-z0-9_])",
+      "match": "(?<![A-Za-z0-9_])(?:deprecated|retiring|upcast|from|consistency|required|optional|stable|strategy|via|policy|prefix|kind|structural|opaque|nominal|record|union|once|silent|declarative)(?![A-Za-z0-9_])",
       "name": "storage.modifier.keiro"
     },
     "constants": {
@@ -79,7 +85,7 @@
     },
     "types": {
       "comment": "`Map` (capitalized) is a primitive type; the reserved lowercase `map` is a control keyword. Oniguruma is case-sensitive, and #types is listed before #control-keywords. `Integer` (keiro-dsl 8b0f55b) is a distinct spelling from `Int`, not an alias — upstream uses `Int` for machine integers and `Integer` for exact arbitrary-precision ones. It is listed before `Int` for readability only: the trailing `(?![A-Za-z0-9_])` already stops `Int` from claiming the head of `Integer`.",
-      "match": "(?<![A-Za-z0-9_])(?:Bool|Integer|Int|Text|Time|UTCTime|Id|Maybe|Natural|Json|Optional|List|Map|typeid|text|int)(?![A-Za-z0-9_])",
+      "match": "(?<![A-Za-z0-9_])(?:Bool|Integer|Int|Text|Time|UTCTime|Id|Maybe|Natural|Json|Optional|List|Map|typeid|text|int|bool)(?![A-Za-z0-9_])",
       "name": "support.type.keiro"
     },
     "scalar-roots": {
@@ -89,7 +95,7 @@
     },
     "control-keywords": {
       "comment": "`using` introduces the consumer binding block on an `id` or `enum` declaration (`id OrderId prefix=ord using { ... }`). It opens a clause of a declaration another word already began — like `wire` inside a `mapped structural` block — so it belongs here rather than with the modifiers. `implementation` opens the transition clause `implementation hole` (keiro-dsl 8b0f55b), a peer of `guard`, `write`, `emit`, and `goto`; its second word `hole` is in #constants and stays there.",
-      "match": "(?<![A-Za-z0-9_])(?:implementation|using|regs|states|command|event|wire|projection|snapshot|category|guard|write|emit|goto|fields|module|layout|prefixed|collocated|resolve|persist|patch|continueAsNew|columns|feed|scope|shape|accept|bind|dedupe|decode|disposition|map|queue|payload|retry|fanout|dedup|enqueue|seenIn|body|step|await|sleep|child|topic|ex|name|input|output|in|out|correlate|saga|stream|target|projections|on|advance|schedule|timer|fireAt|fire|source|key|value|run|signal|query|project|result|ordering|backoff|outboxId|messageId|idempotencyKey|discriminator|schemaVersion|derive|of|after|logical|physical|dlq|table|maxRetries|maxAttempts|delay|readModel|field|to|envelope|every|partial|header|schema|version|inline|row|halt|poison|rejected|group|provision|outcome|fixture|interval|retention|standard|unlogged|partitioned|unordered|off|strict|lenient|haskell|package|type|binding|codec|fixtures|initial|object|constructor|string|tag|contents|as|reject|ignore)(?![A-Za-z0-9_])",
+      "match": "(?<![A-Za-z0-9_])(?:implementation|using|regs|states|command|event|wire|projection|snapshot|category|guard|write|emit|goto|fields|module|layout|prefixed|collocated|resolve|persist|patch|continueAsNew|columns|feed|scope|shape|accept|bind|dedupe|decode|disposition|map|queue|payload|retry|fanout|dedup|enqueue|seenIn|body|step|await|sleep|child|topic|ex|name|input|output|in|out|correlate|saga|stream|target|projections|on|advance|schedule|timer|fireAt|fire|source|key|value|run|signal|query|project|result|ordering|backoff|outboxId|messageId|idempotencyKey|discriminator|schemaVersion|derive|of|after|logical|physical|dlq|table|maxRetries|maxAttempts|delay|readModel|field|to|envelope|every|partial|header|schema|version|inline|row|halt|poison|rejected|group|provision|outcome|fixture|interval|retention|standard|unlogged|partitioned|unordered|off|strict|lenient|haskell|package|type|binding|codec|fixtures|initial|object|constructor|string|tag|contents|as|reject|ignore|reset|clear|preserve|targets|order|provisioner|validator|promotion|index|constraint|all|delivery|subscription|replay|explicit|fail|freshness|immediate|backing|accepted|rejection|reactions|when|otherwise|cancel|timers|identity|with|where|recipient|empty|failure|redelivery|ack|idempotence|delegated)(?![A-Za-z0-9_])",
       "name": "keyword.control.keiro"
     },
     "numbers": {

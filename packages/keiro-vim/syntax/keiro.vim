@@ -40,6 +40,9 @@ syntax keyword keiroConstant HOLE placeholder skip hole null
 " never claims the head of `Integer`.
 syntax keyword keiroType Bool Int Integer Text Time UTCTime Id Maybe Natural Json Optional List Map
 syntax keyword keiroType typeid text int
+" `bool` joins `text` and `int` as the third lowercase legacy workqueue payload type
+" (keiro-dsl d7be0fe6..9fb54d56, `pLegacyPayload` in Parser/Queue.hs).
+syntax keyword keiroType bool
 
 " --- Declaration-introducer keywords --------------------------------------
 syntax keyword keiroKeyword context id enum rule mapped aggregate process router contract
@@ -52,12 +55,19 @@ syntax keyword keiroKeyword language
 " dashed `dispatch-each` / `dispatch-id` control words. Match bare `dispatch` only when it
 " is NOT followed by '-', leaving the dashed words to the keiroStatement matches below.
 syntax match keiroKeyword /\<dispatch\>-\@!/
+" The four dashed Language-5 projection-catalog declarations (keiro-dsl 9fb54d56 range,
+" Parser/ProjectionCatalog.hs). They begin top-level items, so they are introducers; being
+" dashed they need 'match'. The fifth catalog declaration, `target`, keeps the Statement class
+" it has always had as a clause word — a lexical highlighter cannot tell the two uses apart.
+syntax match keiroKeyword /\<\%(rebuild-group\|projection-revision\|external-read\|projection-owner\)\>/
 
 " --- Modifiers ------------------------------------------------------------
 " `retiring` and `deprecated` are the two mutually exclusive event prefixes: an event on its
 " way off the write path, and one already off it. Both qualify the declaration `event`
 " introduces, so both are modifiers rather than statements.
-syntax keyword keiroModifier deprecated retiring upcast from consistency required stable
+" `from` is a prefix of the dashed checkpoint policies `from-beginning` / `from-current-head`,
+" so it is matched with the '-\@!' guard further down rather than listed here.
+syntax keyword keiroModifier deprecated retiring upcast consistency required stable
 syntax keyword keiroModifier strategy via policy prefix kind
 " `structural` / `opaque` / `nominal` select a mapped declaration's family and `record` /
 " `union` its shape; `optional` is `required`'s partner on a mapped wire field. All qualify the
@@ -68,16 +78,21 @@ syntax keyword keiroModifier structural opaque nominal record union optional
 " needs 'match' and must cover the whole spelling — otherwise `replay` and `only` are seen
 " as two separate words and the marker is left plain.
 syntax match keiroModifier /\<replay-only\>/
+" Language 5/6 modifiers: `once` qualifies a reaction `schedule`, `silent` qualifies the
+" `no-action` of an accepted block, and `declarative` selects a router's resolve form the way
+" `stable` always has.
+syntax keyword keiroModifier once silent declarative
+syntax match keiroModifier /\<from\>-\@!/
 
 " --- Control / section keywords -------------------------------------------
-syntax keyword keiroStatement regs states command event wire projection guard
+syntax keyword keiroStatement regs states command event wire guard
 syntax keyword keiroStatement write goto fields accept bind decode
 syntax keyword keiroStatement disposition map queue payload retry fanout dedup
 syntax keyword keiroStatement enqueue seenIn body step await sleep child topic ex
 syntax keyword keiroStatement name input output in out correlate saga stream
 syntax keyword keiroStatement target projections advance schedule timer fire
 syntax keyword keiroStatement fireAt source key value run signal query project
-syntax keyword keiroStatement result ordering backoff outboxId messageId
+syntax keyword keiroStatement ordering backoff outboxId messageId
 syntax keyword keiroStatement idempotencyKey discriminator schemaVersion derive
 syntax keyword keiroStatement of after logical physical dlq table maxRetries
 syntax keyword keiroStatement maxAttempts delay readModel field to envelope
@@ -85,7 +100,7 @@ syntax keyword keiroStatement maxAttempts delay readModel field to envelope
 syntax keyword keiroStatement module layout prefixed collocated snapshot category
 syntax keyword keiroStatement resolve persist patch continueAsNew columns feed scope
 " Curated contextual words for the router/readmodel/snapshot/workqueue/intake surfaces.
-syntax keyword keiroStatement every partial header schema version inline row halt
+syntax keyword keiroStatement every partial header version inline row halt
 syntax keyword keiroStatement poison rejected group provision outcome fixture interval
 syntax keyword keiroStatement retention standard unlogged partitioned unordered off
 syntax keyword keiroStatement strict lenient
@@ -105,6 +120,16 @@ syntax keyword keiroStatement using
 " above — it has been there since plan 4 as the `derive "..." hole` and `resolve ... hole`
 " marker — so the clause reads as a statement followed by a constant.
 syntax keyword keiroStatement implementation
+" The Language 5/6 surface (keiro-dsl d7be0fe6..9fb54d56): projection-catalog clause labels
+" and values, readmodel freshness/backing, domain outcomes, process reactions and their timers,
+" declarative router selection, and delegated intake idempotence. None is reserved. `replay`,
+" `provisioner`, and `validator` are absent here because each heads a dashed word; they are
+" '-\@!' matches below.
+syntax keyword keiroStatement reset clear preserve targets order promotion index constraint
+syntax keyword keiroStatement all delivery subscription explicit fail freshness immediate
+syntax keyword keiroStatement backing accepted rejection reactions when otherwise cancel
+syntax keyword keiroStatement timers identity with where recipient empty failure redelivery
+syntax keyword keiroStatement ack idempotence delegated
 
 " Dashed keywords need 'match' because '-' is not a keyword character.
 syntax match keiroStatement /\<\%(status-map\|dispatch-id\|fired-event-id\)\>/
@@ -122,12 +147,22 @@ syntax match keiroStatement /\<\%(binding-version\|canonical-type\|tagged-object
 " — so unlike `on-ok` or `dispatch-each` it needs no '-\@!' guard on a bare prefix. It only
 " has to be matched at all, so the whole spelling is one token instead of plain text.
 syntax match keiroStatement /\<keiro-dsl\>/
+" Language 5/6 dashed clause labels and values.
+syntax match keiroStatement /\<\%(depends-on\|schema-version\|provisioner-version\|expected-shape\)\>/
+syntax match keiroStatement /\<\%(validator-version\|owned-sequence\|result-schema\|result-type\)\>/
+syntax match keiroStatement /\<\%(compatible-revisions\|surface-generation\|checkpoint-on-missing\)\>/
+syntax match keiroStatement /\<\%(from-beginning\|from-current-head\|live-only\|wait-for-head\)\>/
+syntax match keiroStatement /\<\%(fifo-heads\|domain-outcomes\|no-op\|no-action\|max-recipients\)\>/
 
 " Bare words that are a *prefix* of a dashed word above must not be 'syntax keyword': a
 " keyword outranks a match starting at the same column, so `on` would claim the head of
 " `on-ok` and leave `-ok` uncolored, and `binding`, `dedupe`, `shape` would do the same to
 " `binding-version`, `dedupe-only`, `shape-hash`. Match them only when NOT followed by '-',
-" exactly as `dispatch` is handled above. Those five (with `dispatch`) are the complete set of
+" exactly as `dispatch` is handled above. The Language 5/6 range (keiro-dsl 9fb54d56) added
+" seven more: `projection` (projection-revision, projection-owner), `schema` (schema-version),
+" `result` (result-schema, result-type), `provisioner`, `validator`, `replay` (the long-standing
+" `replay-only`), and the modifier `from` (from-beginning, from-current-head), which is matched
+" beside the other modifiers above. Those twelve (with `dispatch`) are the complete set of
 " prefix collisions across Sections 3 and 4 of spec/keiro-dsl-language-model.md.
 "
 " A bare word appearing in the *interior* of a dashed word needs no such treatment: Vim
@@ -137,6 +172,12 @@ syntax match keiroStatement /\<on\>-\@!/
 syntax match keiroStatement /\<binding\>-\@!/
 syntax match keiroStatement /\<dedupe\>-\@!/
 syntax match keiroStatement /\<shape\>-\@!/
+syntax match keiroStatement /\<projection\>-\@!/
+syntax match keiroStatement /\<schema\>-\@!/
+syntax match keiroStatement /\<result\>-\@!/
+syntax match keiroStatement /\<provisioner\>-\@!/
+syntax match keiroStatement /\<validator\>-\@!/
+syntax match keiroStatement /\<replay\>-\@!/
 
 " The two roots of a version-2 scalar expression: `reg.balance` reads a register, `cmd.balance`
 " reads a field of the command being handled. They are the same class as the older dotted roots

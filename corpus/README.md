@@ -225,6 +225,29 @@ The remaining files are **hand-written for this repository**:
   so the file's first bare `as` is the alias marker, which the Shiki suite's first-match
   helper depends on. It backs the reconciliation recorded in
   `docs/plans/16-record-the-keiro-dsl-field-alias-syntax-haskell-as-on-aggregate-and-contract-fields-and-cover-it-in-the-corpus.md`.
+- `language-version-5-projection-catalog.keiro` — authored here (2026-09-18) to exercise the
+  **Language 5** surface of the keiro-dsl range `d7be0fe6..9fb54d56` (keiro-dsl 0.17.0.0), under
+  which version 5 became the stable contract: the five projection-catalog declarations
+  (`target`, `rebuild-group`, `projection-revision` with all three `promotion` kinds,
+  `projection-owner` with both `delivery` values, `checkpoint-on-missing`, and both `replay`
+  forms), a `readmodel` with `query input`/`query result`, `freshness = immediate` and
+  `wait-for-head entire-log`, and `backing`, an `external-read` contract, a workqueue with typed
+  `:` payload fields and the lowercase `bool` type, and an aggregate with `domain-outcomes` and
+  all three `outcome` clauses. Its constructs are shaped after upstream's
+  `projection-catalog.keiro` and `domain-command-outcomes.keiro` fixtures, condensed into one
+  file that passes `keiro-dsl check` at 0.17.0.0. Its comment banner sits at the **end** of the
+  file so both suites' first-match anchors land on code.
+- `language-version-6-reactions-and-selection.keiro` — authored here (2026-09-18) for the
+  **Language 6** (candidate) surface of the same range: a `process` using `reactions version 1`
+  with guarded `when`/`otherwise` arms, an `accepted … silent no-action` block, `schedule … once`,
+  `cancel`, `no-action`, `timers max-attempts …`, and per-timer blocks; a `router` with a typed
+  `:` input and `resolve declarative { … }`; `idempotence delegated` on an intake; `ordering
+  fifo-heads` on a workqueue; an identifier-keyed `Map[TemplateId] Text`; and a declared id type
+  in a contract field. It is shaped after upstream's `process-timers.keiro`,
+  `structural-nominal-leaves.keiro`, `intake-delegated.keiro`, and `workqueue-fifo-heads.keiro`
+  fixtures, and passes `keiro-dsl check` at 0.17.0.0 with warnings only. Both files back the
+  reconciliation recorded in
+  `docs/plans/17-highlight-the-keiro-dsl-language-5-and-6-surface-projection-catalog-process-reactions-declarative-router-selection-and-domain-outcomes.md`.
 
 ## Rules for consumers
 

@@ -577,6 +577,135 @@ expect('emit Observed', 'keiroKeyword')
 expect('goto Dispatched', 'keiroStatement')
 expect('-->', 'keiroOperator')
 
+-- The Language 5 surface (keiro-dsl d7be0fe6..9fb54d56). Version 5 is now the stable contract and
+-- admits the projection catalog, readmodel freshness and query types, the external read
+-- contract, typed workqueue payloads, and domain command outcomes — 63 new words across Language
+-- 5 and 6, none reserved. The word-list guard at the bottom of this file already proves each word
+-- is claimed whole by some keyword group; these assertions pin the *class* each one takes and
+-- that the constructs tokenize in real code. The corpus file's comment banner is at its end, so
+-- first-match anchors land on code.
+open('corpus/language-version-5-projection-catalog.keiro')
+expect('language keiro-dsl 5', 'keiroKeyword')
+expect('5', 'keiroNumber')
+-- The four dashed catalog introducers, whole-token: the bare `projection` heads two of them and
+-- must not claim the head (its '-\@!' guard), and `group` / `read` sit in the interior.
+expect_uniform('rebuild-group', 'keiroKeyword')
+expect_uniform('projection-revision', 'keiroKeyword')
+expect_uniform('projection-owner', 'keiroKeyword')
+expect_uniform('external-read', 'keiroKeyword')
+-- `target` as a top-level declaration keeps its long-standing Statement class.
+expect('target order_summary {', 'keiroStatement')
+expect('reset = clear', 'keiroStatement')
+expect_uniform('clear', 'keiroStatement', 'reset = clear')
+expect_uniform('preserve', 'keiroStatement', 'reset = preserve')
+expect_uniform('depends-on', 'keiroStatement')
+expect('targets = [', 'keiroStatement')
+expect('order = [', 'keiroStatement')
+-- `schema`, `provisioner`, and `validator` each head a dashed label: both the bare and the dashed
+-- spelling must come out whole.
+expect_uniform('schema', 'keiroStatement', 'schema = "sales"')
+expect_uniform('schema-version', 'keiroStatement')
+expect_uniform('provisioner', 'keiroStatement', 'provisioner = ')
+expect_uniform('provisioner-version', 'keiroStatement')
+expect_uniform('expected-shape', 'keiroStatement')
+expect_uniform('validator', 'keiroStatement', 'validator = ')
+expect_uniform('validator-version', 'keiroStatement')
+expect('promotion index', 'keiroStatement')
+expect_uniform('index', 'keiroStatement', 'promotion index')
+expect_uniform('constraint', 'keiroStatement', 'promotion constraint')
+expect_uniform('owned-sequence', 'keiroStatement')
+expect('source = aggregate', 'keiroStatement')
+expect_uniform('all', 'keiroStatement', 'source = all')
+expect('delivery = inline', 'keiroStatement')
+expect_uniform('subscription', 'keiroStatement', 'delivery = subscription')
+expect_uniform('subscription', 'keiroStatement', 'subscription = "')
+-- `replay` heads the older dashed Modifier `replay-only`, so it too is a guarded match.
+expect_uniform('replay', 'keiroStatement', 'replay = explicit')
+expect_uniform('explicit', 'keiroStatement', 'replay = explicit')
+expect_uniform('live-only', 'keiroStatement')
+expect_uniform('checkpoint-on-missing', 'keiroStatement')
+-- `from` is a Modifier that heads a dashed Control value — the first Modifier to need the guard.
+expect_uniform('from-current-head', 'keiroStatement')
+expect('freshness = immediate', 'keiroStatement')
+expect_uniform('immediate', 'keiroStatement', 'freshness = immediate')
+expect_uniform('wait-for-head', 'keiroStatement')
+expect('backing = ', 'keiroStatement')
+expect('query input = Text', 'keiroStatement')
+expect_uniform('input', 'keiroStatement', 'query input = Text')
+expect_uniform('result', 'keiroStatement', 'query result = ')
+expect_uniform('result-schema', 'keiroStatement')
+expect_uniform('result-type', 'keiroStatement')
+expect_uniform('compatible-revisions', 'keiroStatement')
+expect_uniform('surface-generation', 'keiroStatement')
+-- The typed workqueue payload and the new lowercase `bool` payload type.
+expect_uniform('bool', 'keiroType', '"urgent"   bool')
+expect_uniform('Text', 'keiroType', '"order_id" : Text')
+-- Domain command outcomes.
+expect_uniform('domain-outcomes', 'keiroStatement')
+expect_uniform('rejection', 'keiroStatement', 'domain-outcomes rejection=')
+expect_uniform('no-op', 'keiroStatement', 'no-op=OrderNoOp')
+expect('outcome accepted', 'keiroStatement')
+expect_uniform('accepted', 'keiroStatement', 'outcome accepted')
+expect_uniform('rejected', 'keiroStatement', 'outcome rejected')
+expect_uniform('no-op', 'keiroStatement', 'outcome no-op')
+-- The aggregate around the outcomes is undisturbed, and the catalog's own `projection` guard did
+-- not break the reserved word: it still colours when no '-' follows (asserted in the grid guard).
+expect('aggregate Orders', 'keiroKeyword')
+expect('guard cmd.requestId', 'keiroStatement')
+expect('goto Closed', 'keiroStatement')
+expect('-->', 'keiroOperator')
+expect('# keiro-dsl Language 5 sample', 'keiroComment')
+
+-- The Language 6 surface (the same range). Version 6 is the `Candidate` registry entry: process
+-- reactions, declarative router selection, `ordering fifo-heads`, `idempotence delegated`,
+-- identifier-keyed maps, and a declared id in a contract field.
+open('corpus/language-version-6-reactions-and-selection.keiro')
+expect('language keiro-dsl 6', 'keiroKeyword')
+expect('6', 'keiroNumber')
+-- The keyed map: `Map` is still a type, and the brackets are uncoloured punctuation.
+expect('Map[TemplateId]', 'keiroType')
+expect_no_group('Map[TemplateId]', 3)
+expect('idempotence delegated', 'keiroStatement')
+expect_uniform('delegated', 'keiroStatement', 'idempotence delegated')
+-- Process reactions.
+expect('reactions version 1', 'keiroStatement')
+expect('on IncidentReported', 'keiroStatement')
+expect('when input.severity', 'keiroStatement')
+expect('otherwise', 'keiroStatement')
+expect('advance RecordCritical', 'keiroStatement')
+expect_uniform('accepted', 'keiroStatement', '        accepted')
+expect('silent no-action', 'keiroModifier')
+expect_uniform('no-action', 'keiroStatement', 'silent no-action')
+expect('schedule escalation', 'keiroStatement')
+expect_uniform('once', 'keiroModifier', 'schedule reminder once')
+expect('cancel reminder', 'keiroStatement')
+expect('timers max-attempts', 'keiroStatement')
+expect_uniform('max-attempts', 'keiroStatement', 'timers max-attempts')
+expect('timer escalation', 'keiroStatement')
+expect_uniform('5m', 'keiroNumber')
+-- Declarative router selection.
+expect('resolve declarative', 'keiroStatement')
+expect_uniform('declarative', 'keiroModifier', 'resolve declarative')
+expect('identity = ', 'keiroStatement')
+expect_uniform('read-model', 'keiroStatement', 'query = read-model')
+expect_uniform('with', 'keiroStatement', 'template_lookup with input')
+expect('where = ', 'keiroStatement')
+expect('recipient = ', 'keiroStatement')
+expect_uniform('max-recipients', 'keiroStatement')
+expect('empty => ack', 'keiroStatement')
+expect_uniform('ack', 'keiroStatement', 'empty => ack')
+expect('failure => retry', 'keiroStatement')
+expect('redelivery = ', 'keiroStatement')
+-- The selection policy values are identifiers, not parser literals: the `-` of `stable-union`
+-- is uncoloured, and `union` keeps the Modifier class it has everywhere (Section 4).
+expect_no_group('stable-union', 6)
+-- The typed router input's ':' and the router tail are undisturbed.
+expect('dispatch-each RouteTemplate', 'keiroStatement')
+-- `ordering fifo-heads`, whole-token.
+expect_uniform('fifo-heads', 'keiroStatement')
+expect('aggregate IncidentSaga', 'keiroKeyword')
+expect('# keiro-dsl Language 6 sample', 'keiroComment')
+
 -- The regression guard for the whole follow-'.' decision on the two roots. `cmd` is a
 -- user-chosen wire word in five corpus files (`id CommandId prefix=cmd`), and an unconditional
 -- rule would recolour every one of them. Asserted against the oldest corpus file, so a future
@@ -702,16 +831,17 @@ local bare, dashed = contextual[1], contextual[2]
 -- 96 -> 97 and 31 -> 32 at keiro-dsl 4523b52, which added the version preamble's `language`
 -- (bare) and `keiro-dsl` (dashed). 97 -> 99 at keiro-dsl fcd6748, which added the nominal
 -- binding words `nominal` and `using`, both bare. 99 -> 100 at keiro-dsl 8b0f55b, which added
--- the transition clause word `implementation`. Section 3 is unchanged throughout: none of those
--- five words is reserved.
+-- the transition clause word `implementation`. 100 -> 139 and 32 -> 56 at keiro-dsl 9fb54d56,
+-- the Language 5 and 6 surface: 39 bare and 24 dashed words (the four dashed projection-catalog
+-- introducers among them). Section 3 is unchanged throughout: none of those words is reserved.
 --
 -- The scalar expression roots `reg` and `cmd` are deliberately NOT in the bare grid, even
 -- though keiro.vim colours them: expect_all_keywordish probes each grid word in a scratch
 -- buffer one word per line, where a root correctly is not a keyword because no '.' follows it.
 -- They are covered by the hand-named assertions above instead.
 expect_count('reserved-word', #reserved, 72)
-expect_count('bare contextual-keyword', #bare, 100)
-expect_count('dashed contextual-keyword', #dashed, 32)
+expect_count('bare contextual-keyword', #bare, 139)
+expect_count('dashed contextual-keyword', #dashed, 56)
 
 expect_all_keywordish('reserved', reserved)
 expect_all_keywordish('contextual', bare)
