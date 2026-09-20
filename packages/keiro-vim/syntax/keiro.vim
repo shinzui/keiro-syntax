@@ -34,11 +34,15 @@ syntax keyword keiroConstant HOLE placeholder skip hole null
 " --- Primitive types ------------------------------------------------------
 " `Map` (capitalized) is a type; the reserved lowercase `map` is a control word below.
 " 'syntax keyword' is case sensitive by default, so the two never collide.
-" `Integer` is the eleventh spelling of the mapped type expression (keiro-dsl 8b0f55b) and a
-" distinct type from `Int`, not an alias: upstream uses `Int` for machine integers and
-" `Integer` for exact arbitrary-precision ones. 'syntax keyword' matches whole words, so `Int`
-" never claims the head of `Integer`.
-syntax keyword keiroType Bool Int Integer Text Time UTCTime Id Maybe Natural Json Optional List Map
+" `Integer` is a distinct type from `Int`, not an alias (keiro-dsl 8b0f55b): upstream uses `Int`
+" for machine integers and `Integer` for exact arbitrary-precision ones. 'syntax keyword' matches
+" whole words, so `Int` never claims the head of `Integer`.
+" `Day` is the newest spelling of the mapped type expression (keiro-dsl 6b92bd52) — a calendar
+" date with no time-of-day part and no time zone, so a different type from `Time`, and unlike
+" `Time` it has no alias. Whole-word matching is load-bearing for it: upstream's own fixture
+" declares `LocalDay`, `MaybeLocalDay`, and a field named `optionalDay`, none of which may be
+" touched. 'syntax keyword' is also case sensitive, so a lowercase `day` field name stays plain.
+syntax keyword keiroType Bool Int Integer Text Time UTCTime Day Id Maybe Natural Json Optional List Map
 syntax keyword keiroType typeid text int
 " `bool` joins `text` and `int` as the third lowercase legacy workqueue payload type
 " (keiro-dsl d7be0fe6..9fb54d56, `pLegacyPayload` in Parser/Queue.hs).

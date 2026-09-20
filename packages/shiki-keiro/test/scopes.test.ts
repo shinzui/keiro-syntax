@@ -228,6 +228,7 @@ const workflowSignal = readFileSync(
   resolve(repoRoot, 'corpus/workflow-signal-mismatch.keiro'),
   'utf8',
 )
+const calendarDays = readFileSync(resolve(repoRoot, 'corpus/mapped-calendar-days.keiro'), 'utf8')
 
 test('comments get the comment scope', () => {
   expectScope(sampler, '# keiro-dsl lexical sampler — comments, strings, numbers, durations, versions', 'comment.line.number-sign.keiro')
@@ -1171,6 +1172,112 @@ test('the workflow signal value clause is undisturbed', () => {
     'entity.name.type.keiro',
     'value ReservationConfirmation',
   )
+})
+
+// --- The calendar day type (keiro-dsl 6b92bd52) -----------------------------
+//
+// `Day` is the newest spelling of `pMappedTypeExpr`: a calendar date with no time-of-day part
+// and no time zone, so a different type from `Time`, which is an instant. Unlike `Time` it has
+// no alias. Adding it was one alternative in the #types rule — but unlike every Language 5 and
+// 6 word before it, a *type* spelling appears in neither Section 3 nor Section 4 of
+// spec/keiro-dsl-language-model.md, so the three mechanical word-count guards at the bottom of
+// this file cannot see it arrive or go missing. The assertions in this block are the only thing
+// protecting it.
+//
+// Every assertion below is anchored to a phrase. `corpus/mapped-calendar-days.keiro` writes
+// `Day` eleven times and the helpers above match the *first* occurrence of a literal, so an
+// unanchored assertion would only ever re-test the bare `wire Day` line.
+
+// The explanation parts of the first line containing `anchor`, or null. Needed here because the
+// `Day` token has to be located positionally on several different lines, and on two of them the
+// spelling is also a substring of a plain identifier earlier in the line (`optionalDay ... Day`),
+// which `expectWholeToken`'s "first part containing the literal" search would find instead.
+function partsOfLine(code: string, anchor: string) {
+  const lines = hl.codeToTokensBase(code, {
+    lang: 'keiro',
+    theme: 'github-light',
+    includeExplanation: true,
+  })
+  for (const line of lines) {
+    const parts = line.flatMap((t) => t.explanation ?? [])
+    if (parts.map((p) => p.content).join('').includes(anchor)) return parts
+  }
+  return null
+}
+
+// Assert that the line containing `anchor` carries at least one token whose content is exactly
+// `Day`, and that every such token is a primitive type.
+function expectDayIsType(anchor: string) {
+  const parts = partsOfLine(calendarDays, anchor)
+  expect(parts, `line containing ${JSON.stringify(anchor)} not found`).not.toBeNull()
+  const days = parts!.filter((p) => p.content === 'Day')
+  expect(
+    days.length,
+    `no whole \`Day\` token on the line containing ${JSON.stringify(anchor)}; it tokenized as ` +
+      JSON.stringify(parts!.map((p) => p.content)),
+  ).toBeGreaterThan(0)
+  for (const day of days) {
+    expect(day.scopes.map((s) => s.scopeName)).toContain('support.type.keiro')
+  }
+}
+
+test('Day is a primitive type in every position the type slot admits', () => {
+  // The bare `wire <Type>` line of a `mapped structural value` — plan 18's fourth shape.
+  expectDayIsType('wire Day')
+  // The same line wrapped in the one-argument constructor `Optional`.
+  expectDayIsType('wire Optional Day')
+  expectWholeToken(calendarDays, 'Optional', 'support.type.keiro', 'wire Optional Day')
+  // A required wire field of a `mapped structural record`.
+  expectDayIsType('primary as "primary" : Day required')
+  // An optional wire field, whose own name `optionalDay` ends in the spelling under test.
+  expectDayIsType('optionalDay as "optionalDay" : Optional Day optional')
+  // Inside `List` and inside `Map`.
+  expectDayIsType('sequence as "sequence" : List Day required')
+  expectDayIsType('labelled as "labelled" : Map Day required')
+  expectWholeToken(calendarDays, 'List', 'support.type.keiro', ': List Day required')
+  expectWholeToken(calendarDays, 'Map', 'support.type.keiro', ': Map Day required')
+})
+
+test('Day does not claim the tail of an identifier that ends in it', () => {
+  // The non-regression that matters: `Day` is a substring of `LocalDay`, `MaybeLocalDay`, and the
+  // field name `optionalDay`, all of which appear in this file, and none may be touched. The
+  // #types rule's `(?<![A-Za-z0-9_])` guard is what prevents it.
+  //
+  // `current LocalDay = initial` is a *use* site, so the whole phrase up to the control keyword
+  // `initial` is one plain token. Asserting on a use site rather than a declaration site keeps
+  // this independent of #bare-mapped-decl-with-name, which legitimately colours the declaration.
+  const reg = partsOfLine(calendarDays, 'current LocalDay = initial')
+  expect(reg, 'the aggregate register line was not found').not.toBeNull()
+  expect(reg!.some((p) => p.content === 'Day'), '`Day` was split out of `LocalDay`').toBe(false)
+  const use = reg!.find((p) => p.content.includes('LocalDay'))!
+  expect(use.scopes.map((s) => s.scopeName)).not.toContain('support.type.keiro')
+  expect(use.scopes.map((s) => s.scopeName).filter((s) => KEYWORDISH_SCOPES.has(s))).toEqual([])
+  // Same for the reference to the other bare container type in a wire field's type slot.
+  const named = partsOfLine(calendarDays, 'namedOptional as "namedOptional" : MaybeLocalDay')
+  expect(named, 'the MaybeLocalDay wire field was not found').not.toBeNull()
+  expect(named!.some((p) => p.content === 'Day'), '`Day` was split out of `MaybeLocalDay`').toBe(
+    false,
+  )
+})
+
+test('a calendar day mapping leaves the rest of the file tokenizing normally', () => {
+  // The declaration head is plan 18's bare container shape, unchanged by this range.
+  expectWholeToken(calendarDays, 'value', 'keyword.control.keiro', 'mapped structural value LocalDay')
+  expectScope(calendarDays, 'LocalDay', 'entity.name.type.keiro')
+  expectWholeToken(calendarDays, 'structural', 'storage.modifier.keiro', 'mapped structural value LocalDay')
+  // The clause labels inside the block.
+  expectScope(calendarDays, 'haskell', 'keyword.control.keiro')
+  expectWholeToken(calendarDays, 'binding-version', 'keyword.control.keiro')
+  expectWholeToken(calendarDays, 'unknown-fields', 'keyword.control.keiro')
+  expectWholeToken(calendarDays, 'on-missing', 'keyword.control.keiro')
+  // The nodes beneath the declarations.
+  expectScope(calendarDays, 'aggregate', 'keyword.declaration.keiro')
+  expectScope(calendarDays, 'workqueue', 'keyword.declaration.keiro')
+  expectWholeToken(calendarDays, 'rebuild-group', 'keyword.declaration.keiro')
+  expectWholeToken(calendarDays, 'projection-owner', 'keyword.declaration.keiro')
+  expectScope(calendarDays, 'readmodel', 'keyword.declaration.keiro')
+  // The version-6 preamble this file needs, which colours as any other preamble does.
+  expectWholeToken(calendarDays, 'keiro-dsl', 'keyword.control.keiro', 'language keiro-dsl 6')
 })
 
 // --- Spec word-list coverage guards -----------------------------------------

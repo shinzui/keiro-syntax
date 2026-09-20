@@ -45,8 +45,9 @@ Copied later, as the parser's lexical surface grew:
   `keiro-dsl/test/fixtures/consumer-types.keiro`. It is the corpus's sample of the
   **consumer-owned mapped type declaration**: all four declaration forms
   (`mapped structural record` / `enum` / `union` and `mapped opaque`), every `on-missing`
-  default value shape, and nine of the ten spellings the wire type slot accepts — including
-  `Natural`, `Json`, `Optional`, `List`, and `Map`. The `aggregate` beneath the declarations
+  default value shape, and nine of the ten literal spellings the wire type slot accepted at that
+  commit — including `Natural`, `Json`, `Optional`, `List`, and `Map`. (The slot has since gained
+  an eleventh, `Day`, covered by `mapped-calendar-days.keiro` below.) The `aggregate` beneath the declarations
   consumes the mapped types, so both suites can also check that a mapped declaration leaves
   the rest of the file tokenizing normally. It backs the reconciliation recorded in
   `docs/plans/8-highlight-consumer-owned-mapped-types-and-their-wire-shapes.md`.
@@ -122,6 +123,26 @@ Copied later, as the parser's lexical surface grew:
   was the **Declaration-site type name** refinement, which now recognizes `value X` as it already
   recognized `record X`. It backs the reconciliation recorded in
   `docs/plans/18-record-the-keiro-dsl-bare-container-mapping-shape-mapped-structural-value-and-cover-it-in-the-corpus.md`.
+- `mapped-calendar-days.keiro` — copied on 2026-09-19 at keiro-dsl commit
+  `6b92bd52348a763311bcc5a7ddc847e6ef4e4406`, from that commit's
+  `keiro-dsl/test/fixtures/calendar-days.keiro`. It is the corpus's sample of the **calendar day
+  type**, the newest spelling of the mapped type expression: `Day`, a date with no time-of-day part
+  and no time zone, and so a different type from the older `Time`, which is an instant. Unlike
+  `Time` it has no alias. The file puts the spelling in every position the grammar admits — the
+  bare `wire Day` line of a `mapped structural value`, `wire Optional Day`, and as a required wire
+  field, an `Optional` wire field, a `List` wire field, and a `Map` wire field of a
+  `mapped structural record` — and beneath the declarations consumes the declared types again in an
+  `aggregate`, a `workqueue` with typed payload fields, a `target` / `rebuild-group` /
+  `projection-owner` projection catalog, and a `readmodel`, so both suites can check that the new
+  spelling leaves the rest of the file tokenizing normally. It is also the corpus's only file in
+  which a primitive type spelling is a **substring of three identifiers on the same lines** —
+  `LocalDay`, `MaybeLocalDay`, and the field name `optionalDay` — which is where both suites pin
+  that the type rules match whole words and match case-sensitively. It is upstream's authoritative
+  fixture for the feature — `keiro-dsl/test/Main.hs` reads it with `readTestText`, parses it with
+  `checkedServiceFromText`, registers it in the conformance fixture list, and asserts that the same
+  text under a `language keiro-dsl 5` preamble is refused — so a verbatim copy proves both packages
+  tokenize text that really is valid keiro-dsl. It backs the reconciliation recorded in
+  `docs/plans/19-highlight-the-keiro-dsl-day-calendar-type-spelling-in-the-mapped-type-expression.md`.
 
 The remaining files are **hand-written for this repository**:
 

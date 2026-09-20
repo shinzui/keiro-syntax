@@ -139,6 +139,20 @@ Section 3 since the first corpus — so Section 3 is still 72 words and Section 
 and 56 dashed. The registry still holds six versions. `corpus/consumer-mapped-bare-containers.keiro`
 is the sample both packages tokenize.
 
+**Version 6 has since gained a second late feature, and this one does cost a word.** keiro-dsl
+commit `6b92bd52` added `CalendarDaySyntax` to syntax profile `keiro-dsl/syntax-profile/5` (and the
+runtime capability `CalendarDayMappings` to `keiro-dsl/runtime-semantics/5`). It is the **calendar
+day type**: a new primitive spelling `Day` accepted by `pMappedTypeExpr`, and so accepted
+everywhere that grammar is the type slot — a mapped type's wire field, the bare `wire <Type>` line
+of the shape above, the argument of `Optional` / `List` / `Map`, an aggregate register, an
+aggregate command/event field, and a workqueue payload field. It is a date with no time-of-day part
+and no time zone, which is what distinguishes it from the older `Time`. Unlike every other
+version-5 and version-6 arrival, `Day` is a **type**, not a clause word, so it lands in neither
+Section 3 nor Section 4 — the type vocabulary of this language lives only in Section 6's
+Primitive-type row. Section 3 is therefore still 72 words and Section 4 still 139 bare and 56
+dashed even though a word did arrive, and the registry still holds six versions.
+`corpus/mapped-calendar-days.keiro` is the sample both packages tokenize.
+
 Since keiro-dsl commit `8b0f55b` version 2 is also the contract for the **scalar expression
 sublanguage** described in Section 4, which adds four more gated spellings: the type name
 `Integer`, the transition clause `implementation hole`, and the two expression roots `reg.` and
@@ -611,12 +625,15 @@ mapped structural value NestedIds {
 
 Seven facts a highlighter implementer needs:
 
-- **The type slot accepts exactly eleven spellings** (parser `pMappedTypeExpr`): `Text`, `Int`,
-  `Integer`, `Bool`, `Natural`, `Time` — with `UTCTime` as an accepted alias for `Time` —
+- **The type slot accepts exactly twelve spellings** (parser `pMappedTypeExpr`): `Text`, `Int`,
+  `Integer`, `Bool`, `Natural`, `Time` — with `UTCTime` as an accepted alias for `Time` — `Day`,
   `Json`, the one-argument constructors `Optional`, `List`, `Map`, and a bare identifier naming
-  another mapped type. All ten literal spellings are **Primitive types** in Section 6, alongside
-  the pre-existing `Int` and `Text`. `Integer` is the newest (keiro-dsl commit `8b0f55b`, which
-  added it to both branches of `pMappedTypeExpr`); it is a distinct spelling from `Int`, not an
+  another mapped type. All eleven literal spellings are **Primitive types** in Section 6, alongside
+  the pre-existing `Int` and `Text`. `Day` is the newest (keiro-dsl commit `6b92bd52`, which added
+  it to both branches of `pMappedTypeExpr`); it is a **calendar date** — a year, month, and day
+  with no time-of-day part and no time zone — and so is a different type from `Time`, which is an
+  instant. Unlike `Time` it has no alias: the one accepted spelling is `Day`. Before it, `Integer`
+  was the newest (keiro-dsl commit `8b0f55b`); it is a distinct spelling from `Int`, not an
   alias for it — upstream uses `Int` for machine integers and `Integer` for exact
   arbitrary-precision ones. Note that `Map` (capital) is a primitive type while the
   reserved `map` (lowercase, Section 3) is a control keyword: they are different words, and
@@ -626,7 +643,7 @@ Seven facts a highlighter implementer needs:
 - **That same type slot is no longer confined to a `mapped` declaration.** keiro-dsl commit
   `da09736` made `pMappedTypeExpr` the type slot of an **aggregate register** (`pRegDecl`,
   which read a bare `ident` before) and of an **aggregate command/event field**
-  (`pAggregateField`, likewise). So all eleven spellings now appear in the two most-written
+  (`pAggregateField`, likewise). So all twelve spellings now appear in the two most-written
   slots in the language:
 
   ```text
@@ -765,10 +782,13 @@ Four facts a highlighter implementer needs:
   exactly like theirs — an aggregate register may be declared
   `accountNumber AccountNumber = initial`.
 - **The representation after the `:` is parsed as a bare identifier**, not with the
-  ten-spelling `pMappedTypeExpr` grammar, and is narrowed later by `keiro-dsl check`. The
+  twelve-spelling `pMappedTypeExpr` grammar, and is narrowed later by `keiro-dsl check`. The
   accepted set (`Keiro/Dsl/NominalType.hs`, `scalarRepresentation`) is `Text`, `Int`,
   `Natural`, `Bool`, `Time`, and `UTCTime` as an alias for `Time` — all six already
-  **Primitive types** in Section 6, so the slot needs no new rule. Because the *parser*
+  **Primitive types** in Section 6, so the slot needs no new rule. keiro-dsl `6b92bd52` added
+  `Day` to `pMappedTypeExpr` but **not** to `scalarRepresentation`, so a nominal binding still
+  cannot be represented as a calendar date; the difference is a `keiro-dsl check` diagnostic and
+  is invisible to a lexical highlighter, which colours `Day` wherever it appears. Because the *parser*
   accepts any identifier there, a file naming an unsupported representation still tokenizes;
   that is the same principle applied to aggregate type slots in
   `docs/plans/9-reconcile-the-widened-aggregate-type-slots-and-fractional-register-initials.md`.
@@ -1117,7 +1137,7 @@ to. Both packages must classify the identical literal words into the keyword cla
 | Control / section keyword | all other reserved keywords (Section 3) **and** all curated contextual keywords (Section 4) *except the words the Modifier and Language-constant rows below claim*, e.g. `regs`, `states`, `command`, `event`, `wire`, `guard`, `write`, `goto`, `snapshot`, `module`, `layout`, `resolve`, `dispatch-each`, `read-model`, `category`, `persist`, `patch`, `continueAsNew`, `columns`, `feed`, `scope`, `shape`, `on`, `advance`, `schedule`, `timer`, `bind`, `accept`, `map`, `step`, `await`, the version preamble's dialect name `keiro-dsl` (dashed — see Section 4), and the mapped-type vocabulary `haskell`, `package`, `type`, `binding`, `binding-version`, `canonical-type`, `codec`, `fixtures`, `initial`, `object`, `constructor`, `string`, `tagged-object`, `tag`, `contents`, `as`, `unknown-fields`, `reject`, `ignore`, `on-missing` (of which `haskell` and `as` are, since keiro-dsl `b31896cf`, also the field-alias markers on aggregate and contract fields — see Section 4), and the nominal-binding clause word `using` (which attaches a consumer binding block to an `id` or `enum` declaration — see Section 4), the transition clause word `implementation` (of `implementation hole`; its second word `hole` is a Language constant, one row down), the shape word `value` of a bare container mapping (`mapped structural value X`, keiro-dsl `a6110a94`) — which stays here, and does **not** join `record` and `union` in the Modifier row, because the same word is the older workflow-signal clause label `signal … value <Type>` and one word gets one class; see Section 4 — and the two scalar-expression roots `reg` and `cmd` — which, uniquely in this table, are matched **only when the next character is a `.`**, so `reg.balance` is a keyword and the wire word in `id CommandId prefix=cmd` is not (see Section 4), the Language 5 and 6 vocabulary of Section 4's last subsection except the words the Modifier, Primitive-type, and introducer rows claim — among them the projection-catalog labels (`reset`, `targets`, `order`, `promotion`, `delivery`, `replay`, `depends-on`, `schema-version`, `checkpoint-on-missing`, …), `freshness`, `backing`, `domain-outcomes`, `rejection`, the reaction words `reactions`, `when`, `otherwise`, `cancel`, `timers`, the declarative-selection labels `identity`, `with`, `where`, `recipient`, `empty`, `failure`, `redelivery`, `max-recipients`, and `idempotence`, plus their enumerated values (`clear`, `preserve`, `all`, `explicit`, `live-only`, `immediate`, `wait-for-head`, `fifo-heads`, `delegated`, `accepted`, `no-op`, `no-action`, `ack`, …), ... | `keyword.control.keiro` | `Statement` |
 | Modifier | `deprecated`, `retiring` (the two mutually exclusive event prefixes — see Section 3), `upcast`, `from`, `consistency`, `required`, `stable`, `strategy`, `via`, `policy`, `prefix`, `kind`, the mapped-type words `structural`, `opaque`, `nominal`, `record`, `union` (which select the family and shape of a `mapped` declaration — but **not** the fourth shape word `value`, which stays a Control keyword one row up for the reason given there) and `optional` (`required`'s partner on a wire field — see Section 4), the dashed `replay-only` (the transition prefix — see Section 4; being dashed it must be matched before bare words), and the Language 5/6 words `once` (qualifies a reaction `schedule`), `silent` (qualifies `no-action`), and `declarative` (selects a `resolve` form, like `stable`). `from` heads the dashed Control values `from-beginning` / `from-current-head`, so Vim matches it with a `-\@!` guard | `storage.modifier.keiro` | `StorageClass` |
 | Language constant | `true`, `false`, `null` (the `on-missing=null` sentinel — see Section 4), `HOLE`, `placeholder`, `skip`, `hole` (three parser sites: a contract emitter's `derive "…" hole`, a router's `resolve … hole`, and — since keiro-dsl `8b0f55b` — the second word of a transition's `implementation hole` clause, whose first word is a Control keyword one row up) | `constant.language.keiro` (give `true` / `false` the more specific `constant.language.boolean.keiro`; `null` takes the general scope) | `Boolean` for `true` / `false`, else `Constant` |
-| Primitive type | `Bool`, `Int`, `Integer` (a distinct spelling from `Int`, not an alias — keiro-dsl `8b0f55b`), `Text`, `Time`, `Id`, `Maybe`, `typeid`, `text`, `int`, `bool` (the third lowercase legacy workqueue payload type — keiro-dsl `9fb54d56` range), and the mapped-type spellings `Natural`, `UTCTime` (an alias for `Time`), `Json`, `Optional`, `List`, `Map` (see Section 4 — `Map` capitalized is a type, the reserved lowercase `map` is a control keyword, and both packages match case-sensitively). These are matched **unconditionally, everywhere**, not only inside a `mapped` declaration: since keiro-dsl `da09736` the same type grammar is also an aggregate register's and an aggregate command/event field's type slot (Section 4) | `support.type.keiro` | `Type` |
+| Primitive type | `Bool`, `Int`, `Integer` (a distinct spelling from `Int`, not an alias — keiro-dsl `8b0f55b`), `Text`, `Time`, `Id`, `Maybe`, `typeid`, `text`, `int`, `bool` (the third lowercase legacy workqueue payload type — keiro-dsl `9fb54d56` range), and the mapped-type spellings `Natural`, `UTCTime` (an alias for `Time`), `Day` (a calendar date with no time-of-day part and no time zone, distinct from `Time`, which is an instant — keiro-dsl `6b92bd52`; unlike `Time` it has no alias), `Json`, `Optional`, `List`, `Map` (see Section 4 — `Map` capitalized is a type, the reserved lowercase `map` is a control keyword, and both packages match case-sensitively). These are matched **unconditionally, everywhere**, not only inside a `mapped` declaration: since keiro-dsl `da09736` the same type grammar is also an aggregate register's and an aggregate command/event field's type slot (Section 4). **This row is the only place the type vocabulary is recorded.** No primitive spelling is in the parser's `reservedWords` and none is a contextual clause word, so none appears in Section 3 or Section 4 — and the mechanical word-count guards in both packages' test suites, which read only those two sections, cannot notice a type spelling arriving or going missing. Named assertions over the corpus are the only protection a type spelling has | `support.type.keiro` | `Type` |
 | Declaration-site type name | a CamelCase plain identifier appearing immediately after a declaration introducer that names a type (`enum X`, `aggregate X`, `contract X`, `command X`, `event X`, `id X`, `workflow X`, `operation X`, `process X`) or immediately after a `mapped` declaration's family or shape word (`record X`, `union X`, `opaque X`, `nominal X`, and — since keiro-dsl `a6110a94` — the bare-container shape `value X`; `mapped structural enum X` is already covered by the `enum X` case). Being lexical, `value X` also claims the type named by a workflow signal operation's trailing `value <Type>` clause, which is a use site rather than a declaration site but does name a type (see Section 4). Note the "CamelCase" requirement is load-bearing for `value X` and for that reason alone: `value` is a common wire field name, and a name slot accepting any identifier would claim the `as` of `value as "value" : Text required` | `entity.name.type.keiro` | `Type` |
 | String | `"..."` (Section 2) | `string.quoted.double.keiro` | `String` |
 | String escape | one of `\"`, `\\`, `\n`, `\t`, `\r` inside a string (Section 2) | `constant.character.escape.keiro` | `SpecialChar` |

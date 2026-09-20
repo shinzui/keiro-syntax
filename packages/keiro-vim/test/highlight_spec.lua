@@ -756,6 +756,61 @@ expect_uniform('List', 'keiroType', 'query result = List TextList')
 open('corpus/workflow-signal-mismatch.keiro')
 expect_uniform('value', 'keiroStatement', 'value ReservationConfirmation')
 
+-- The calendar day type (keiro-dsl 6b92bd52). `Day` is the newest spelling of
+-- `pMappedTypeExpr`: a calendar date with no time-of-day part and no time zone, so a different
+-- type from `Time`, which is an instant. Unlike `Time` it has no alias. It cost one word in the
+-- `keiroType` keyword list — but unlike every Language 5 and 6 word before it, a *type* spelling
+-- is in neither Section 3 nor Section 4 of spec/keiro-dsl-language-model.md, so the three
+-- word-list guards at the bottom of this file cannot see it arrive or go missing. This block is
+-- the only thing protecting it.
+--
+-- Every `Day` assertion below is anchored. The file writes the spelling eleven times and
+-- locate() takes the first match, so an unanchored assertion would only re-test `wire Day`.
+open('corpus/mapped-calendar-days.keiro')
+-- The bare `wire <Type>` line of a `mapped structural value` — plan 18's fourth shape.
+expect('wire Day', 'keiroStatement')
+expect_uniform('Day', 'keiroType', 'wire Day')
+-- The same line wrapped in the one-argument constructor `Optional`.
+expect_uniform('Optional', 'keiroType', 'wire Optional Day')
+expect_uniform('Day', 'keiroType', 'wire Optional Day')
+-- A required wire field of a `mapped structural record`, then an optional one, then the two
+-- container forms. The anchors start at the `:` rather than at the field name because two of
+-- these field names end in the spelling under test.
+expect_uniform('Day', 'keiroType', ': Day required')
+expect_uniform('Day', 'keiroType', ': Optional Day optional')
+expect_uniform('Day', 'keiroType', ': List Day required')
+expect_uniform('Day', 'keiroType', ': Map Day required')
+expect_uniform('List', 'keiroType', ': List Day required')
+expect_uniform('Map', 'keiroType', ': Map Day required')
+-- The non-regression that matters: `Day` is a substring of `LocalDay`, `MaybeLocalDay`, and the
+-- field name `optionalDay`, all of which appear in this file, and none may be touched. What
+-- protects them is that 'syntax keyword' matches whole words. The offsets below land on the `D`
+-- inside each identifier; a rule that matched the spelling anywhere would colour exactly there.
+expect_no_group('current LocalDay = initial', 13)
+expect_no_group(': MaybeLocalDay required', 12)
+expect_no_group('optionalDay as "optionalDay"', 8)
+-- 'syntax keyword' is also case sensitive, so the lowercase field name `day` stays plain.
+expect_no_group('{ day:LocalDay', 2)
+-- The declaration head and clause labels are plan 18's surface, unchanged by this range.
+expect('mapped structural value', 'keiroKeyword')
+expect_uniform('value', 'keiroStatement', 'mapped structural value LocalDay')
+expect('haskell package', 'keiroStatement')
+expect_uniform('binding-version', 'keiroStatement')
+expect_uniform('unknown-fields', 'keiroStatement')
+expect_uniform('on-missing', 'keiroStatement')
+-- `LocalDay` at its declaration site is deliberately not asserted as keiroTypeName, for the same
+-- reason `MaybeText` is not above: the Vim rule for the optional Declaration-site-type-name
+-- refinement has never fired for any introducer. Section 6 marks that class optional.
+--
+-- The nodes beneath the declarations must be undisturbed.
+expect('aggregate CalendarStore', 'keiroKeyword')
+expect('workqueue calendar_jobs', 'keiroKeyword')
+expect_uniform('rebuild-group', 'keiroKeyword')
+expect_uniform('projection-owner', 'keiroKeyword')
+expect('readmodel calendar_lookup', 'keiroKeyword')
+-- The version-6 preamble this file needs, which colours as any other preamble does.
+expect_uniform('keiro-dsl', 'keiroStatement', 'language keiro-dsl 6')
+
 -- The regression guard for the whole follow-'.' decision on the two roots. `cmd` is a
 -- user-chosen wire word in five corpus files (`id CommandId prefix=cmd`), and an unconditional
 -- rule would recolour every one of them. Asserted against the oldest corpus file, so a future
