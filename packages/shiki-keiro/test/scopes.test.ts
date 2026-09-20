@@ -229,6 +229,7 @@ const workflowSignal = readFileSync(
   'utf8',
 )
 const calendarDays = readFileSync(resolve(repoRoot, 'corpus/mapped-calendar-days.keiro'), 'utf8')
+const textSets = readFileSync(resolve(repoRoot, 'corpus/mapped-text-sets.keiro'), 'utf8')
 
 test('comments get the comment scope', () => {
   expectScope(sampler, '# keiro-dsl lexical sampler — comments, strings, numbers, durations, versions', 'comment.line.number-sign.keiro')
@@ -1278,6 +1279,148 @@ test('a calendar day mapping leaves the rest of the file tokenizing normally', (
   expectScope(calendarDays, 'readmodel', 'keyword.declaration.keiro')
   // The version-6 preamble this file needs, which colours as any other preamble does.
   expectWholeToken(calendarDays, 'keiro-dsl', 'keyword.control.keiro', 'language keiro-dsl 6')
+})
+
+// --- Structural text sets (keiro-dsl 01ba6c58) ------------------------------
+//
+// `Set Text` is the language's only two-word type spelling: an unordered collection of text
+// values with no duplicates, unlike the ordered `List Text`. The parser reads `Set` and then
+// *requires* `Text` (`pTextSet` in keiro-dsl's Parser/Mapped.hs), so there is no `Set Natural`
+// and no bare `Set` — but the grammar here matches `Set` with one ordinary alternative in the
+// #types rule, which colours the phrase correctly wherever it is legal. Like `Day` before it, a
+// type spelling appears in neither Section 3 nor Section 4 of spec/keiro-dsl-language-model.md,
+// so the word-count guards at the bottom of this file cannot see it arrive or go missing.
+
+// Every explanation entry in a document, in order. Used by the prefix non-regression below,
+// which has to prove a *negative* over three whole files rather than one line.
+function allParts(code: string) {
+  return hl
+    .codeToTokensBase(code, { lang: 'keiro', theme: 'github-light', includeExplanation: true })
+    .flatMap((line) => line.flatMap((t) => t.explanation ?? []))
+}
+
+// Assert that the line containing `anchor` carries whole `Set` and `Text` tokens and that every
+// one of them is a primitive type — i.e. that the two-word spelling renders as one type rather
+// than as a plain word beside a coloured one, which is exactly the defect before this rule.
+function expectSetTextIsType(anchor: string) {
+  const parts = partsOfLine(textSets, anchor)
+  expect(parts, `line containing ${JSON.stringify(anchor)} not found`).not.toBeNull()
+  for (const word of ['Set', 'Text']) {
+    const hits = parts!.filter((p) => p.content === word)
+    expect(
+      hits.length,
+      `no whole \`${word}\` token on the line containing ${JSON.stringify(anchor)}; it ` +
+        `tokenized as ${JSON.stringify(parts!.map((p) => p.content))}`,
+    ).toBeGreaterThan(0)
+    for (const hit of hits) {
+      expect(hit.scopes.map((s) => s.scopeName)).toContain('support.type.keiro')
+    }
+  }
+}
+
+test('Set Text is a primitive type in every position the type slot admits', () => {
+  // The bare `wire <Type>` line of a `mapped structural value` — plan 18's fourth shape.
+  expectSetTextIsType('wire Set Text')
+  // The same line wrapped in the one-argument constructor `Optional`.
+  expectSetTextIsType('wire Optional (Set Text)')
+  expectWholeToken(textSets, 'Optional', 'support.type.keiro', 'wire Optional (Set Text)')
+  // A required wire field of a `mapped structural record`, then an optional one.
+  expectSetTextIsType('primary as "primary" : Set Text required')
+  expectSetTextIsType('optionalLabels as "optionalLabels" : Optional (Set Text) optional')
+  // Inside `List` and inside `Map`.
+  expectSetTextIsType('sequence as "sequence" : List (Set Text) required')
+  expectSetTextIsType('labelled as "labelled" : Map (Set Text) required')
+  expectWholeToken(textSets, 'List', 'support.type.keiro', ': List (Set Text) required')
+  expectWholeToken(textSets, 'Map', 'support.type.keiro', ': Map (Set Text) required')
+})
+
+test('the parentheses around a text set stay uncoloured punctuation', () => {
+  // Upstream's fixture writes the container forms parenthesised (`Optional (Set Text)`) where
+  // the calendar-day fixture wrote them bare (`Optional Day`). Both parse. Section 5 of
+  // spec/keiro-dsl-language-model.md has never claimed brackets or braces, and #operators
+  // deliberately lists no parenthesis, so the two characters must stay plain.
+  const parts = partsOfLine(textSets, 'wire Optional (Set Text)')
+  expect(parts, 'the `wire Optional (Set Text)` line was not found').not.toBeNull()
+  for (const part of parts!.filter((p) => p.content.includes('(') || p.content.includes(')'))) {
+    const scopes = part.scopes.map((s) => s.scopeName)
+    expect(scopes).not.toContain('support.type.keiro')
+    expect(scopes.filter((s) => KEYWORDISH_SCOPES.has(s))).toEqual([])
+    expect(scopes).not.toContain('keyword.operator.keiro')
+  }
+})
+
+test('Set does not claim a type spelling out of the interior of a module path', () => {
+  // `module=Conformance.StructuralTextSets.Domain` is an *unquoted* slot, so no string rule
+  // protects it. Both `Set` and `Text` are substrings of `StructuralTextSets`, and the #types
+  // rule's `(?<![A-Za-z0-9_])` / `(?![A-Za-z0-9_])` guards are what keep them out of it.
+  const parts = partsOfLine(textSets, 'module=Conformance.StructuralTextSets.Domain')
+  expect(parts, 'the haskell source line was not found').not.toBeNull()
+  expect(
+    parts!.filter((p) => p.content === 'Set' || p.content === 'Text').map((p) => p.content),
+    'a type spelling was split out of `StructuralTextSets`',
+  ).toEqual([])
+  const path = parts!.find((p) => p.content.includes('StructuralTextSets'))!
+  expect(path.scopes.map((s) => s.scopeName)).not.toContain('support.type.keiro')
+})
+
+test('the Set type rule does not claim the head of a Settle-family identifier', () => {
+  // The non-regression that matters, and the first of its kind: `Set` is the *head* of
+  // `Settle`, `Settled`, `SettleEntry`, `TicketSettled`, and `EntrySettled`, which have been in
+  // these three corpus files since plans 12, 14, and 15 — files the upstream range that added
+  // `Set` never touched. No assertion over the new sample could notice them being recoloured.
+  for (const [name, code] of [
+    ['language-version-3', versionThree],
+    ['language-version-4', versionFour],
+    ['transition-implementation-hole', implementationHole],
+  ] as const) {
+    expect(
+      allParts(code).filter((p) => p.content === 'Set').length,
+      `\`Set\` was split out of an identifier in corpus/${name}.keiro`,
+    ).toBe(0)
+  }
+  // And the identifiers themselves stay the colour they were.
+  for (const [code, anchor] of [
+    [versionThree, 'states Open Settled'],
+    [versionFour, 'goto Settled'],
+    [implementationHole, 'emit TicketSettled'],
+  ] as const) {
+    const parts = partsOfLine(code, anchor)
+    expect(parts, `line containing ${JSON.stringify(anchor)} not found`).not.toBeNull()
+    const use = parts!.find((p) => p.content.includes('Settled'))!
+    const scopes = use.scopes.map((s) => s.scopeName)
+    expect(scopes).not.toContain('support.type.keiro')
+    expect(scopes.filter((s) => KEYWORDISH_SCOPES.has(s))).toEqual([])
+  }
+  // The one place a `Settle`-family name legitimately *is* coloured stays coloured:
+  // #decl-with-name claims the whole name after `command`, and has since plan 3.
+  expectScope(implementationHole, 'Settle', 'entity.name.type.keiro')
+  expect(scopesOf(implementationHole, 'Settle')).not.toContain('support.type.keiro')
+})
+
+test('a text-set mapping leaves the rest of the file tokenizing normally', () => {
+  // The declaration head is plan 18's bare container shape, unchanged by this range.
+  expectWholeToken(textSets, 'value', 'keyword.control.keiro', 'mapped structural value TextLabels')
+  expectScope(textSets, 'TextLabels', 'entity.name.type.keiro')
+  expectWholeToken(
+    textSets,
+    'structural',
+    'storage.modifier.keiro',
+    'mapped structural value TextLabels',
+  )
+  // The clause labels inside the block.
+  expectScope(textSets, 'haskell', 'keyword.control.keiro')
+  expectWholeToken(textSets, 'binding-version', 'keyword.control.keiro')
+  expectWholeToken(textSets, 'unknown-fields', 'keyword.control.keiro')
+  expectWholeToken(textSets, 'on-missing', 'keyword.control.keiro')
+  // The nodes beneath the declarations, including this file's `replay-only` transition.
+  expectScope(textSets, 'aggregate', 'keyword.declaration.keiro')
+  expectWholeToken(textSets, 'replay-only', 'storage.modifier.keiro')
+  expectScope(textSets, 'workqueue', 'keyword.declaration.keiro')
+  expectWholeToken(textSets, 'rebuild-group', 'keyword.declaration.keiro')
+  expectWholeToken(textSets, 'projection-owner', 'keyword.declaration.keiro')
+  expectScope(textSets, 'readmodel', 'keyword.declaration.keiro')
+  // The version-6 preamble this file needs, which colours as any other preamble does.
+  expectWholeToken(textSets, 'keiro-dsl', 'keyword.control.keiro', 'language keiro-dsl 6')
 })
 
 // --- Spec word-list coverage guards -----------------------------------------

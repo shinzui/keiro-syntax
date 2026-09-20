@@ -811,6 +811,74 @@ expect('readmodel calendar_lookup', 'keiroKeyword')
 -- The version-6 preamble this file needs, which colours as any other preamble does.
 expect_uniform('keiro-dsl', 'keiroStatement', 'language keiro-dsl 6')
 
+-- Structural text sets (keiro-dsl 01ba6c58). `Set Text` is the language's only two-word type
+-- spelling: an unordered collection of text values with no duplicates, unlike the ordered
+-- `List Text`. The parser reads `Set` and then *requires* `Text`, so there is no `Set Natural`
+-- and no bare `Set` — but syntax/keiro.vim matches `Set` with one ordinary 'syntax keyword',
+-- which colours the phrase correctly wherever it is legal. Both halves must be keiroType, or the
+-- type renders half-coloured, which is the defect this block exists to catch.
+open('corpus/mapped-text-sets.keiro')
+expect('wire Set Text', 'keiroStatement')
+expect_uniform('Set', 'keiroType', 'wire Set Text')
+expect_uniform('Text', 'keiroType', 'wire Set Text')
+-- The same line wrapped in the one-argument constructor `Optional`, parenthesised as upstream's
+-- fixture writes it. Parentheses are uncoloured punctuation, so they change nothing here.
+expect_uniform('Optional', 'keiroType', 'wire Optional (Set Text)')
+expect_uniform('Set', 'keiroType', 'wire Optional (Set Text)')
+-- A required wire field of a `mapped structural record`, then an optional one, then the two
+-- container forms. The anchors start at the `:` so they cannot land inside a field name.
+expect_uniform('Set', 'keiroType', ': Set Text required')
+expect_uniform('Set', 'keiroType', ': Optional (Set Text) optional')
+expect_uniform('Set', 'keiroType', ': List (Set Text) required')
+expect_uniform('Set', 'keiroType', ': Map (Set Text) required')
+expect_uniform('List', 'keiroType', ': List (Set Text) required')
+expect_uniform('Map', 'keiroType', ': Map (Set Text) required')
+-- `module=Conformance.StructuralTextSets.Domain` is an *unquoted* slot, so no string rule
+-- protects it, and both `Set` and `Text` are substrings of `StructuralTextSets`. What protects
+-- them is that 'syntax keyword' matches whole words: offset 29 is the `T` of the inner `Text`
+-- and offset 33 the `S` of the inner `Set`, and neither may carry a group.
+expect_no_group('module=Conformance.StructuralTextSets.Domain', 29)
+expect_no_group('module=Conformance.StructuralTextSets.Domain', 33)
+-- 'syntax keyword' is also case sensitive and matches whole words, so the lowercase plural in
+-- the context name `structural-text-sets` stays plain: offset 24 is the `s` that begins `sets`.
+-- (Its neighbours do not, and that is long-standing, deliberate behaviour: `-` is not a keyword
+-- character, so the segments `structural` and `text` of a dashed wire word are coloured as the
+-- modifier and the lowercase type they are spelled like. Nothing here changes that.)
+expect_no_group('context structural-text-sets', 24)
+-- The declaration head and clause labels are plan 18's surface, unchanged by this range.
+expect('mapped structural value', 'keiroKeyword')
+expect_uniform('value', 'keiroStatement', 'mapped structural value TextLabels')
+expect('haskell package', 'keiroStatement')
+expect_uniform('binding-version', 'keiroStatement')
+expect_uniform('unknown-fields', 'keiroStatement')
+expect_uniform('on-missing', 'keiroStatement')
+-- The nodes beneath the declarations must be undisturbed, including this file's `replay-only`
+-- transition, which no other verbatim upstream sample in the corpus carries beside a new type.
+expect('aggregate LabelStore', 'keiroKeyword')
+expect_uniform('replay-only', 'keiroModifier')
+expect('workqueue label_jobs', 'keiroKeyword')
+expect_uniform('rebuild-group', 'keiroKeyword')
+expect_uniform('projection-owner', 'keiroKeyword')
+expect('readmodel label_lookup', 'keiroKeyword')
+-- The version-6 preamble this file needs, which colours as any other preamble does.
+expect_uniform('keiro-dsl', 'keiroStatement', 'language keiro-dsl 6')
+
+-- The non-regression that matters, and the first of its kind: `Set` is the *head* of `Settle`,
+-- `Settled`, `SettleEntry`, `TicketSettled`, and `EntrySettled`, which have been in these three
+-- corpus files since plans 12, 14, and 15 — files the upstream range that added `Set` never
+-- touched, so no assertion over the new sample could notice them being recoloured. What protects
+-- them is that 'syntax keyword' never matches a word prefix. Each offset below lands on the `S`
+-- that begins the spelling under test.
+open('corpus/language-version-4.keiro')
+expect_no_group('goto Settled', 5)
+expect_no_group('command SettleEntry', 8)
+expect_no_group('emit EntrySettled', 10)
+open('corpus/language-version-3.keiro')
+expect_no_group('states Open Settled', 12)
+open('corpus/transition-implementation-hole.keiro')
+expect_no_group('command Settle {', 8)
+expect_no_group('emit TicketSettled', 11)
+
 -- The regression guard for the whole follow-'.' decision on the two roots. `cmd` is a
 -- user-chosen wire word in five corpus files (`id CommandId prefix=cmd`), and an unconditional
 -- rule would recolour every one of them. Asserted against the oldest corpus file, so a future

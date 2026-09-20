@@ -42,7 +42,15 @@ syntax keyword keiroConstant HOLE placeholder skip hole null
 " `Time` it has no alias. Whole-word matching is load-bearing for it: upstream's own fixture
 " declares `LocalDay`, `MaybeLocalDay`, and a field named `optionalDay`, none of which may be
 " touched. 'syntax keyword' is also case sensitive, so a lowercase `day` field name stays plain.
-syntax keyword keiroType Bool Int Integer Text Time UTCTime Day Id Maybe Natural Json Optional List Map
+" `Set` (keiro-dsl 01ba6c58) is the first half of the language's only two-word type spelling,
+" `Set Text` — an unordered collection of text values with no duplicates, unlike the ordered
+" `List Text`. The parser admits no other element type after `Set`, but one ordinary keyword here
+" colours the phrase correctly wherever it is legal; a two-word rule would buy nothing visible.
+" Whole-word matching is load-bearing for it in a way it was not for `Day`: `Set` is the *head* of
+" `Settle`, `Settled`, `SettleEntry`, `TicketSettled`, and `EntrySettled`, which are in three
+" corpus files this word never came near. 'syntax keyword' never matches a word prefix, so all
+" five stay plain — and the tests in test/highlight_spec.lua pin that against those files.
+syntax keyword keiroType Bool Int Integer Text Time UTCTime Day Set Id Maybe Natural Json Optional List Map
 syntax keyword keiroType typeid text int
 " `bool` joins `text` and `int` as the third lowercase legacy workqueue payload type
 " (keiro-dsl d7be0fe6..9fb54d56, `pLegacyPayload` in Parser/Queue.hs).

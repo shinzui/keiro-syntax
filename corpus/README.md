@@ -143,6 +143,32 @@ Copied later, as the parser's lexical surface grew:
   text under a `language keiro-dsl 5` preamble is refused — so a verbatim copy proves both packages
   tokenize text that really is valid keiro-dsl. It backs the reconciliation recorded in
   `docs/plans/19-highlight-the-keiro-dsl-day-calendar-type-spelling-in-the-mapped-type-expression.md`.
+- `mapped-text-sets.keiro` — copied on 2026-09-20 at keiro-dsl commit
+  `01ba6c58f418010c1e2c0edd415f776079deecc1`, from that commit's
+  `keiro-dsl/test/fixtures/structural-text-sets.keiro`. It is the corpus's sample of the
+  **structural text set**, the newest spelling of the mapped type expression: `Set Text`, an
+  unordered collection of text values with no duplicates, and so a different type from the ordered
+  `List Text`. It is the language's only two-word type spelling, and the second word is fixed —
+  the parser reads `Set` and then requires `Text`, so there is no `Set Natural` and no bare `Set`.
+  The file puts the spelling in every position the grammar admits — the bare `wire Set Text` line
+  of a `mapped structural value`, `wire Optional (Set Text)`, and as a required wire field, an
+  `Optional` wire field, a `List` wire field, and a `Map` wire field of a
+  `mapped structural record` — and beneath the declarations consumes the declared types again in an
+  `aggregate` with a `replay-only` transition, a `workqueue` with typed payload fields, a `target` /
+  `rebuild-group` / `projection-owner` projection catalog, and a `readmodel`, so both suites can
+  check that the new spelling leaves the rest of the file tokenizing normally. It is also the
+  corpus's only file in which a primitive type spelling appears in the **interior of an unquoted
+  Haskell module path** — `module=Conformance.StructuralTextSets.Domain` — which both suites pin
+  alongside the older files that hold the *prefix* collision this spelling has and no earlier one
+  did (`Settle`, `Settled`, `SettleEntry`, `TicketSettled`, `EntrySettled`, in
+  `transition-implementation-hole.keiro`, `language-version-3.keiro`, and
+  `language-version-4.keiro`). It is upstream's authoritative fixture for the feature —
+  `keiro-dsl/test/Main.hs` reads it with `readTestText`, parses it with `checkedServiceFromText`,
+  registers it in the conformance fixture manifest, scaffolds generated modules from it, and
+  asserts that the same text under a `language keiro-dsl 5` preamble is refused — so a verbatim
+  copy proves both packages tokenize text that really is valid keiro-dsl. It backs the
+  reconciliation recorded in
+  `docs/plans/20-highlight-the-keiro-dsl-set-text-structural-text-set-type-spelling.md`.
 
 The remaining files are **hand-written for this repository**:
 
