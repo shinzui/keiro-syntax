@@ -950,6 +950,90 @@ expect('readmodel hash_lookup', 'keiroKeyword')
 -- The version-6 preamble this file needs, which colours as any other preamble does.
 expect_uniform('keiro-dsl', 'keiroStatement', 'language keiro-dsl 6')
 
+-- The explicit id admission domain (keiro-dsl 6b89cb51).
+--
+-- `id LegacyId prefix=legacy domain=typeid-v5-or-v7` names, in the source text, which canonical
+-- identifier values the declared type admits. The clause is optional and omitting it means the same
+-- as writing `domain=typeid-v7`, which is also legal. It costs three words: the bare clause label
+-- `domain` and the two dashed values. The defect before these rules: `id` and `prefix` coloured
+-- beside a plain `domain`, and `typeid-v5-or-v7` rendered as a coloured `typeid` (the primitive
+-- type) followed by a grey `-`, a coloured `v5` (the version-number rule), and so on.
+open('corpus/id-admission-domains.keiro')
+expect('id LegacyId prefix=legacy', 'keiroKeyword')
+-- Both labels on the declaration line must land in the same class. They are written in the same
+-- 'label=value' shape and qualify the same declaration, so a split would colour the two halves of
+-- one line as two different kinds of thing.
+expect_uniform('prefix', 'keiroModifier', 'id LegacyId prefix=legacy')
+expect_uniform('domain', 'keiroModifier', 'id LegacyId prefix=legacy')
+-- The name after `id` stays plain under Vim, as it does after every other introducer: the
+-- keiroTypeName rule has been inert since it was written (see syntax/keiro.vim). Offset 3 is the
+-- `L` of `LegacyId`, offset 19 the `l` of the `legacy` wire word, which no rule may claim either.
+expect_no_group('id LegacyId prefix=legacy', 3)
+expect_no_group('id LegacyId prefix=legacy', 19)
+-- The value, in one whole token. Two collisions at once, and neither is resolved by the pattern:
+-- the leading segment `typeid` is a primitive type (which is why syntax/keiro.vim now matches it
+-- with a '-\@!' guard instead of a 'syntax keyword'), and the `v5` and `v7` really are preceded by
+-- a word boundary — the `v` follows a '-' — so the keiroNumber match /\<v\d\+\>/ genuinely matches
+-- them and loses only because it starts later in the line. Requiring one uniform group over all
+-- fifteen characters is the assertion that catches either failure; a first-character check would
+-- pass either way.
+expect_uniform('typeid-v5-or-v7', 'keiroStatement')
+-- `context id-admission-domains` puts a reserved introducer at the head of a user-chosen wire word,
+-- and Vim DOES colour it: '-' is not a keyword character, so `id` there is a whole word. Same
+-- long-standing behaviour as `refined` inside `context refined-base16`. Offset 11 is the `a` of
+-- `admission` and offset 21 the `d` of `domains` — the latter is the one that matters, because the
+-- new bare `domain` rule must not claim it. It cannot: '\>' requires a word boundary after the
+-- match, and an `s` follows.
+expect_uniform('id', 'keiroKeyword', 'context id-admission-domains')
+expect_no_group('context id-admission-domains', 11)
+expect_no_group('context id-admission-domains', 21)
+-- The declared id consumed again beneath the declaration, and the nodes around it, so the new
+-- clause is shown to leave the rest of the file tokenizing normally.
+expect('mapped structural record IdentityEnvelope', 'keiroKeyword')
+expect_uniform('record', 'keiroModifier', 'mapped structural record IdentityEnvelope')
+expect_uniform('canonical-type', 'keiroStatement')
+expect_uniform('unknown-fields', 'keiroStatement')
+expect_uniform('Optional', 'keiroType', ': Optional LegacyId')
+expect_uniform('Map', 'keiroType', ': Map[LegacyId] Text')
+expect('aggregate IdentityLedger', 'keiroKeyword')
+expect_uniform('replay-only', 'keiroModifier')
+expect('workqueue identity_work', 'keiroKeyword')
+expect_uniform('disposition', 'keiroStatement')
+expect('contract identities', 'keiroKeyword')
+expect_uniform('discriminator', 'keiroStatement')
+expect_uniform('keiro-dsl', 'keiroStatement', 'language keiro-dsl 6')
+
+-- The explicit default spelling, which upstream's fixture never writes because omitting the clause
+-- means the same thing. It lives in the Language 6 sample instead.
+open('corpus/language-version-6-reactions-and-selection.keiro')
+expect_uniform('domain', 'keiroModifier', 'id TemplateId prefix=template')
+expect_uniform('typeid-v7', 'keiroStatement')
+
+-- The two words the new rules could have broken, asserted where they have always lived.
+--
+-- `typeid` bare is the lowercase legacy workqueue payload type, and it is the first word in Section
+-- 6's Primitive-type row ever to be the head of a dashed keyword. Moving it off 'syntax keyword'
+-- onto a '-\@!' match is exactly the kind of change that silently drops a word, so the bare use is
+-- pinned here against the corpus file that has carried it since the first corpus.
+open('corpus/intake.keiro')
+expect_uniform('typeid', 'keiroType')
+-- `domain-outcomes` is the older dashed value whose head the new bare `domain` rule could have
+-- claimed, the way `on` once claimed the head of `on-ok`. (The Language 5 block far above asserts
+-- this too; it is repeated here so the guard sits beside the rule that made it necessary.)
+open('corpus/language-version-5-projection-catalog.keiro')
+expect_uniform('domain-outcomes', 'keiroStatement')
+
+-- `domain` is the first of the three new words to recolour text in a corpus file the upstream range
+-- never touched. `haskell package=artifact-domain ...` has been in this file since plan 8, and '-'
+-- is not a keyword character, so `domain` there is a whole word and Vim colours it. Every family and
+-- clause word in this file already behaves that way (`refined` inside `context refined-base16`), so
+-- it is pinned rather than "fixed". Offset 31 is the `E` of the capitalised `Example.Artifact.Domain`
+-- beside it, which must stay plain: 'syntax keyword' and this match are both case sensitive, and
+-- that is the only thing keeping the rule out of the module path.
+open('corpus/consumer-mapped-types.keiro')
+expect_uniform('domain', 'keiroModifier', 'package=artifact-domain')
+expect_no_group('package=artifact-domain module=Example.Artifact.Domain', 31)
+
 -- Spec word-list coverage guards.
 --
 -- `retiring` joined the parser's `reservedWords` in keiro-dsl 75286d7 without changing how the
@@ -1071,6 +1155,8 @@ local bare, dashed = contextual[1], contextual[2]
 -- the Language 5 and 6 surface: 39 bare and 24 dashed words (the four dashed projection-catalog
 -- introducers among them). 139 -> 140 and 56 -> 57 at keiro-dsl e548fffd, which added the fourth
 -- `mapped` family: the bare family word `refined` and the dashed wire policy `base16-bytes`.
+-- 140 -> 141 and 57 -> 59 at keiro-dsl 6b89cb51, which added the explicit id admission domain: the
+-- bare clause label `domain` and its two dashed values `typeid-v5-or-v7` and `typeid-v7`.
 -- Section 3 is unchanged throughout: none of those words is reserved.
 --
 -- The scalar expression roots `reg` and `cmd` are deliberately NOT in the bare grid, even
@@ -1078,8 +1164,8 @@ local bare, dashed = contextual[1], contextual[2]
 -- buffer one word per line, where a root correctly is not a keyword because no '.' follows it.
 -- They are covered by the hand-named assertions above instead.
 expect_count('reserved-word', #reserved, 72)
-expect_count('bare contextual-keyword', #bare, 140)
-expect_count('dashed contextual-keyword', #dashed, 57)
+expect_count('bare contextual-keyword', #bare, 141)
+expect_count('dashed contextual-keyword', #dashed, 59)
 
 expect_all_keywordish('reserved', reserved)
 expect_all_keywordish('contextual', bare)

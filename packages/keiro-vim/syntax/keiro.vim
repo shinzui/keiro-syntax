@@ -51,7 +51,15 @@ syntax keyword keiroConstant HOLE placeholder skip hole null
 " corpus files this word never came near. 'syntax keyword' never matches a word prefix, so all
 " five stay plain — and the tests in test/highlight_spec.lua pin that against those files.
 syntax keyword keiroType Bool Int Integer Text Time UTCTime Day Set Id Maybe Natural Json Optional List Map
-syntax keyword keiroType typeid text int
+" `typeid` is the lowercase legacy workqueue payload type (`incidentId: typeid "inc"`). Since
+" keiro-dsl 6b89cb51 it is ALSO the leading segment of the two dashed Control values
+" `typeid-v5-or-v7` and `typeid-v7`, so it can no longer be a 'syntax keyword': a keyword outranks a
+" match beginning at the same column, and it would claim the head of both spellings and leave the
+" rest plain. It is the first word in the Primitive-type row of Section 6 of
+" spec/keiro-dsl-language-model.md ever to need the '-\@!' treatment the statement words below use.
+" `text` and `int` have no dashed partner and stay ordinary keywords.
+syntax match keiroType /\<typeid\>-\@!/
+syntax keyword keiroType text int
 " `bool` joins `text` and `int` as the third lowercase legacy workqueue payload type
 " (keiro-dsl d7be0fe6..9fb54d56, `pLegacyPayload` in Parser/Queue.hs).
 syntax keyword keiroType bool
@@ -103,6 +111,14 @@ syntax match keiroModifier /\<replay-only\>/
 " `stable` always has.
 syntax keyword keiroModifier once silent declarative
 syntax match keiroModifier /\<from\>-\@!/
+" `domain` is the clause label of an `id` declaration's explicit admission domain (keiro-dsl
+" 6b89cb51): `id LegacyId prefix=legacy domain=typeid-v5-or-v7`. It is a modifier rather than a
+" statement because it is written beside `prefix` in the same 'label=value' shape and qualifies the
+" declaration `id` introduces — one colour across the whole line is the point. Like `from` it heads
+" a dashed Control value (`domain-outcomes`, from the Language 5 surface), so it needs the guard;
+" the parser draws the same line, since `keyword "domain"` ends with
+" notFollowedBy (identChar <|> (char '-' *> identChar)) and refuses to fire on `domain-outcomes`.
+syntax match keiroModifier /\<domain\>-\@!/
 
 " --- Control / section keywords -------------------------------------------
 syntax keyword keiroStatement regs states command event wire guard
@@ -182,6 +198,17 @@ syntax match keiroStatement /\<\%(validator-version\|owned-sequence\|result-sche
 syntax match keiroStatement /\<\%(compatible-revisions\|surface-generation\|checkpoint-on-missing\)\>/
 syntax match keiroStatement /\<\%(from-beginning\|from-current-head\|live-only\|wait-for-head\)\>/
 syntax match keiroStatement /\<\%(fifo-heads\|domain-outcomes\|no-op\|no-action\|max-recipients\)\>/
+" The two values of an `id` declaration's `domain=` clause (keiro-dsl 6b89cb51,
+" `pIdAdmission` in Parser/Declaration.hs). Fixed enumerated clause values, like `live-only` and
+" `fifo-heads` above, and the grammar admits no third. Two collisions, both resolved by Vim's
+" preference for the match that starts EARLIER in the line rather than by anything in this pattern:
+" the leading segment `typeid` is a primitive type (guarded with '-\@!' in the type section above),
+" and — unlike `base16-bytes` — the digits here really are preceded by a word boundary, because the
+" `v` in front of them follows a '-'. So the keiroNumber match /\<v\d\+\>/ genuinely matches the
+" `v5` and the `v7` inside `typeid-v5-or-v7`; it loses only because it starts later. These are the
+" first keywords in the language whose digits are protected by ordering rather than by construction,
+" which is why the suites assert one uniform group over every character of both spellings.
+syntax match keiroStatement /\<\%(typeid-v5-or-v7\|typeid-v7\)\>/
 
 " Bare words that are a *prefix* of a dashed word above must not be 'syntax keyword': a
 " keyword outranks a match starting at the same column, so `on` would claim the head of
@@ -191,8 +218,11 @@ syntax match keiroStatement /\<\%(fifo-heads\|domain-outcomes\|no-op\|no-action\
 " seven more: `projection` (projection-revision, projection-owner), `schema` (schema-version),
 " `result` (result-schema, result-type), `provisioner`, `validator`, `replay` (the long-standing
 " `replay-only`), and the modifier `from` (from-beginning, from-current-head), which is matched
-" beside the other modifiers above. Those twelve (with `dispatch`) are the complete set of
-" prefix collisions across Sections 3 and 4 of spec/keiro-dsl-language-model.md.
+" beside the other modifiers above. keiro-dsl 6b89cb51 added the last two: the modifier `domain`
+" (domain-outcomes), matched beside the other modifiers, and the primitive type `typeid`
+" (typeid-v5-or-v7, typeid-v7), matched in the type section. Those fourteen (with `dispatch`) are
+" the complete set of prefix collisions across Sections 3 and 4 of
+" spec/keiro-dsl-language-model.md, and `typeid` is the only one that is not a clause word.
 "
 " A bare word appearing in the *interior* of a dashed word needs no such treatment: Vim
 " prefers the match that starts earlier, which is why `status-map` survives `map` being a

@@ -199,6 +199,36 @@ Copied later, as the parser's lexical surface grew:
   `language keiro-dsl 5` preamble is refused — so a verbatim copy proves both packages tokenize text
   that really is valid keiro-dsl. It backs the reconciliation recorded in
   `docs/plans/21-highlight-the-keiro-dsl-mapped-refined-declaration-family-and-its-base16-bytes-wire-policy.md`.
+- `id-admission-domains.keiro` — copied on 2026-09-20 at keiro-dsl commit
+  `6b89cb5173c4aa5e73598c2ca41437d9fd07a6df`, from that commit's
+  `keiro-dsl/test/fixtures/id-admission-domains.keiro`. It is the corpus's sample of the **explicit
+  id admission domain**: the optional trailing clause on an `id` declaration, written
+  `id LegacyId prefix=legacy domain=typeid-v5-or-v7`, which names in the source text which canonical
+  identifier values the declared type admits. It is the corpus's only sample of that clause, and the
+  only file in which two of the three words keiro-dsl `6b89cb51` added appear at all: the bare clause
+  label `domain` and the dashed value `typeid-v5-or-v7`. (The third, the explicit default
+  `typeid-v7`, appears only in `language-version-6-reactions-and-selection.keiro` below, because
+  upstream's fixture never writes it — omitting the clause means the same thing.) Beneath the
+  declaration the file consumes the declared id again as a direct wire field, as an `Optional`, and
+  as a `Map[LegacyId]` key inside a `mapped structural record`, then in an `aggregate IdentityLedger`
+  with a `replay-only` transition, a `workqueue` with typed payload fields and a `disposition` table,
+  and a `contract identities` with a declared id in an event field, so both suites can check that the
+  new clause leaves the rest of the file tokenizing normally. It is also where both suites pin the
+  three collisions the new words bring with them. Two are prefix collisions: `domain` is the head of
+  the older dashed `domain-outcomes`, and `typeid` — the lowercase legacy workqueue payload *type* —
+  is the head of both new values, which makes it the first word in Section 6's Primitive-type row
+  ever to need the match-before-bare-words treatment. The third is the digits: the `v5` and `v7`
+  inside `typeid-v5-or-v7` really are preceded by a word boundary, unlike the `1` of `base16`, so
+  only rule ordering keeps the version-number rules of both packages out of them. The file's context
+  name, `context id-admission-domains`, is a fourth thing worth knowing about rather than a
+  collision: its first segment `id` is coloured as a declaration introducer because a dash is not a
+  word character in either engine, exactly as `refined` is coloured inside `context refined-base16`.
+  It is upstream's authoritative fixture for the feature — `keiro-dsl/test/conformance-baseline.json`
+  registers it as the `source` of the compiled conformance suite
+  `keiro-dsl-conformance-id-admission-domains`, and `keiro-dsl/test/Main.hs` names it among the
+  fixtures deliberately kept outside published Language 4 — so a verbatim copy proves both packages
+  tokenize text that really is valid keiro-dsl. It backs the reconciliation recorded in
+  `docs/plans/22-highlight-the-keiro-dsl-explicit-id-admission-domain-clause-and-its-typeid-v5-or-v7-and-typeid-v7-values.md`.
 
 The remaining files are **hand-written for this repository**:
 
@@ -346,6 +376,15 @@ The remaining files are **hand-written for this repository**:
   fixtures, and passes `keiro-dsl check` at 0.17.0.0 with warnings only. Both files back the
   reconciliation recorded in
   `docs/plans/17-highlight-the-keiro-dsl-language-5-and-6-surface-projection-catalog-process-reactions-declarative-router-selection-and-domain-outcomes.md`.
+  On 2026-09-20 its `id TemplateId` declaration gained one more token, ` domain=typeid-v7`, so the
+  corpus carries the **explicit default spelling** of the id admission domain clause keiro-dsl
+  `6b89cb51` added (see `id-admission-domains.keiro` above, which writes only the other value).
+  The extension is semantically inert and does not change what the file is a sample of: the parser
+  stores the same `TypeIdV7` whether the clause is written or omitted, and `docId` in
+  `keiro-dsl/src/Keiro/Dsl/PrettyPrint.hs` prints nothing for `TypeIdV7`, so the explicit spelling
+  round-trips back to the implicit one. This file was chosen for it because the clause requires
+  `language keiro-dsl 6`, which it already declares. It backs the reconciliation recorded in
+  `docs/plans/22-highlight-the-keiro-dsl-explicit-id-admission-domain-clause-and-its-typeid-v5-or-v7-and-typeid-v7-values.md`.
 
 ## Rules for consumers
 

@@ -234,6 +234,11 @@ const refinedBase16 = readFileSync(
   resolve(repoRoot, 'corpus/mapped-refined-base16.keiro'),
   'utf8',
 )
+const admissionDomains = readFileSync(
+  resolve(repoRoot, 'corpus/id-admission-domains.keiro'),
+  'utf8',
+)
+const intake = readFileSync(resolve(repoRoot, 'corpus/intake.keiro'), 'utf8')
 
 test('comments get the comment scope', () => {
   expectScope(sampler, '# keiro-dsl lexical sampler — comments, strings, numbers, durations, versions', 'comment.line.number-sign.keiro')
@@ -1555,6 +1560,128 @@ test('a refined mapping leaves the rest of the file tokenizing normally', () => 
   expectWholeToken(refinedBase16, 'keiro-dsl', 'keyword.control.keiro', 'language keiro-dsl 6')
 })
 
+// --- The explicit id admission domain (keiro-dsl 6b89cb51) -------------------------------
+//
+// `id LegacyId prefix=legacy domain=typeid-v5-or-v7` names, in the source text, which canonical
+// identifier values the declared type admits. The clause is optional and omitting it means the same
+// as writing `domain=typeid-v7`, which is also legal. It costs three words: the bare clause label
+// `domain` and the two dashed values. Every other word on the declaration line is older than it.
+
+test('the domain clause label is a modifier, coloured exactly like the prefix beside it', () => {
+  // The defect before this rule: `id` and `prefix` coloured, `domain` plain, on one line whose two
+  // halves have identical shape. Both labels must land in the same class or the line reads as two
+  // different kinds of thing.
+  expectWholeToken(admissionDomains, 'id', 'keyword.declaration.keiro', 'id LegacyId prefix=legacy')
+  expectScope(admissionDomains, 'LegacyId', 'entity.name.type.keiro')
+  expectWholeToken(admissionDomains, 'prefix', 'storage.modifier.keiro', 'id LegacyId prefix=legacy')
+  expectWholeToken(admissionDomains, 'domain', 'storage.modifier.keiro', 'id LegacyId prefix=legacy')
+  // And the wire word between them stays plain, as every id prefix always has.
+  const parts = partsOfLine(admissionDomains, 'id LegacyId prefix=legacy')
+  expect(parts, 'the id declaration line was not found').not.toBeNull()
+  const wireWord = parts!.find((p) => p.content.includes('legacy'))
+  expect(wireWord, 'the `legacy` prefix wire word was not found').toBeDefined()
+  expect(wireWord!.scopes.filter((s) => KEYWORDISH_SCOPES.has(s.scopeName))).toEqual([])
+})
+
+test('typeid-v5-or-v7 is one whole control keyword and no part of it is a number', () => {
+  // Two collisions at once, and both are resolved by #dashed-keywords being listed earlier in the
+  // top-level patterns array rather than by anything in the patterns themselves. The leading
+  // segment `typeid` is a primitive type in #types; and — unlike `base16-bytes`, whose digit is
+  // preceded by the word character `e` — the `v5` and `v7` here follow a `-`, so #numbers'
+  // `\bv[0-9]+\b` alternative genuinely matches them. A first-character check would pass either
+  // way; requiring one whole token is what catches it.
+  expectWholeToken(admissionDomains, 'typeid-v5-or-v7', 'keyword.control.keiro')
+  const parts = partsOfLine(admissionDomains, 'domain=typeid-v5-or-v7')
+  expect(parts, 'the id declaration line was not found').not.toBeNull()
+  expect(
+    parts!.filter((p) => p.scopes.some((s) => s.scopeName === 'constant.numeric.keiro')).length,
+    'a number rule claimed part of `typeid-v5-or-v7`',
+  ).toBe(0)
+  expect(
+    parts!.filter((p) => p.content === 'typeid').length,
+    '#types claimed the head of `typeid-v5-or-v7`',
+  ).toBe(0)
+})
+
+test('the explicit default typeid-v7 is the same whole control keyword', () => {
+  // The other legal spelling, which upstream's fixture never writes because omitting the clause
+  // means the same thing. `corpus/language-version-6-reactions-and-selection.keiro` carries it.
+  expectWholeToken(languageSix, 'domain', 'storage.modifier.keiro', 'id TemplateId prefix=template')
+  expectWholeToken(languageSix, 'typeid-v7', 'keyword.control.keiro')
+  const parts = partsOfLine(languageSix, 'domain=typeid-v7')
+  expect(parts, 'the TemplateId declaration line was not found').not.toBeNull()
+  expect(
+    parts!.filter((p) => p.scopes.some((s) => s.scopeName === 'constant.numeric.keiro')).length,
+    'a number rule claimed part of `typeid-v7`',
+  ).toBe(0)
+})
+
+test('the two words the new rules could have broken are still whole and still themselves', () => {
+  // `typeid` bare is the lowercase legacy workqueue payload type. It is the first word in Section
+  // 6's Primitive-type row to be the head of a dashed keyword, so it is the regression the dashed
+  // rule could plausibly cause; `corpus/intake.keiro` has carried it since the first corpus.
+  expectWholeToken(intake, 'typeid', 'support.type.keiro')
+  // `domain-outcomes` is the older dashed Control value whose head the new bare `domain` rule could
+  // have claimed, in exactly the way `on` once claimed the head of `on-ok`.
+  expectWholeToken(languageFive, 'domain-outcomes', 'keyword.control.keiro')
+})
+
+test('the domain segment of an unquoted haskell package name is coloured, and Domain is not', () => {
+  // `domain` is the first of these three words to recolour text in a corpus file the upstream range
+  // never touched: `haskell package=artifact-domain …` has been in `corpus/consumer-mapped-types.keiro`
+  // since plan 8, and the trailing `(?![A-Za-z0-9_])` guard excludes identifier characters but not
+  // `-`. Both packages behave this way for every family and clause word already (`refined` inside
+  // `context refined-base16`), so it is pinned here rather than "fixed".
+  const parts = partsOfLine(mappedTypes, 'package=artifact-domain')
+  expect(parts, 'the haskell source line was not found').not.toBeNull()
+  const seg = parts!.find((p) => p.content === 'domain')
+  expect(seg, 'the `domain` segment of the package name was not claimed as its own token').toBeDefined()
+  expect(seg!.scopes.map((s) => s.scopeName)).toContain('storage.modifier.keiro')
+  // The capitalised `Domain` of the module path beside it must stay plain: Oniguruma is
+  // case-sensitive, and that is the only thing keeping the rule out of `Example.Artifact.Domain`.
+  const path = parts!.find((p) => p.content.includes('Example.Artifact.Domain'))!
+  expect(path.scopes.filter((s) => KEYWORDISH_SCOPES.has(s.scopeName))).toEqual([])
+})
+
+test('the id segment of the context wire word is coloured and its tail is not', () => {
+  // `context id-admission-domains` puts a reserved introducer at the head of a user-chosen wire
+  // word, and both packages DO colour it: `-` is not a word character in either engine. Same
+  // long-standing behaviour as `refined` inside `context refined-base16`. What must stay plain is
+  // the tail — including `domains`, which the new `domain` rule must not claim, because every rule
+  // in this grammar requires a word boundary after the match.
+  const parts = partsOfLine(admissionDomains, 'context id-admission-domains')
+  expect(parts, 'the context line was not found').not.toBeNull()
+  const head = parts!.find((p) => p.content === 'id')!
+  expect(head.scopes.map((s) => s.scopeName)).toContain('keyword.declaration.keiro')
+  const tail = parts!.find((p) => p.content.includes('admission'))!
+  expect(tail.content, 'the wire word tail was split').toBe('-admission-domains')
+  expect(tail.scopes.filter((s) => KEYWORDISH_SCOPES.has(s.scopeName))).toEqual([])
+})
+
+test('an admission domain clause leaves the rest of the file tokenizing normally', () => {
+  // The declared id is consumed again as a direct wire field, as an `Optional`, and as a keyed-map
+  // key, then by an aggregate, a workqueue, and a contract.
+  expectWholeToken(
+    admissionDomains,
+    'record',
+    'storage.modifier.keiro',
+    'mapped structural record IdentityEnvelope',
+  )
+  expectScope(admissionDomains, 'IdentityEnvelope', 'entity.name.type.keiro')
+  expectWholeToken(admissionDomains, 'canonical-type', 'keyword.control.keiro')
+  expectWholeToken(admissionDomains, 'unknown-fields', 'keyword.control.keiro')
+  expectWholeToken(admissionDomains, 'Optional', 'support.type.keiro', ': Optional LegacyId')
+  expectWholeToken(admissionDomains, 'Map', 'support.type.keiro', ': Map[LegacyId] Text')
+  expectScope(admissionDomains, 'aggregate', 'keyword.declaration.keiro')
+  expectWholeToken(admissionDomains, 'replay-only', 'storage.modifier.keiro')
+  expectScope(admissionDomains, 'workqueue', 'keyword.declaration.keiro')
+  expectWholeToken(admissionDomains, 'disposition', 'keyword.control.keiro')
+  expectScope(admissionDomains, 'contract', 'keyword.declaration.keiro')
+  expectWholeToken(admissionDomains, 'discriminator', 'keyword.control.keiro')
+  // The version-6 preamble this file needs, which colours as any other preamble does.
+  expectWholeToken(admissionDomains, 'keiro-dsl', 'keyword.control.keiro', 'language keiro-dsl 6')
+})
+
 // --- Spec word-list coverage guards -----------------------------------------
 //
 // `retiring` joined the parser's `reservedWords` in keiro-dsl 75286d7 without changing how
@@ -1574,7 +1701,7 @@ test('the spec Section 3 list holds the parser 72 reserved words', () => {
   expect(reservedWordsFromSpec().length).toBe(72)
 })
 
-test('the spec Section 4 lists 140 bare and 57 dashed contextual keywords', () => {
+test('the spec Section 4 lists 141 bare and 59 dashed contextual keywords', () => {
   // 96 -> 97 and 31 -> 32 at keiro-dsl 4523b52, which added the version preamble's `language`
   // (bare) and `keiro-dsl` (dashed). 97 -> 99 at keiro-dsl fcd6748, which added the nominal
   // binding words `nominal` and `using`, both bare. 99 -> 100 at keiro-dsl 8b0f55b, which added
@@ -1582,6 +1709,8 @@ test('the spec Section 4 lists 140 bare and 57 dashed contextual keywords', () =
   // the Language 5 and 6 surface: 39 bare and 24 dashed words (the four dashed projection-catalog
   // introducers among them). 139 -> 140 and 56 -> 57 at keiro-dsl e548fffd, which added the fourth
   // `mapped` family: the bare family word `refined` and the dashed wire policy `base16-bytes`.
+  // 140 -> 141 and 57 -> 59 at keiro-dsl 6b89cb51, which added the explicit id admission domain:
+  // the bare clause label `domain` and its two dashed values `typeid-v5-or-v7` and `typeid-v7`.
   // Section 3 is unchanged throughout: none of those words is reserved.
   //
   // The scalar expression roots `reg` and `cmd` are deliberately NOT in the bare grid, even
@@ -1589,8 +1718,8 @@ test('the spec Section 4 lists 140 bare and 57 dashed contextual keywords', () =
   // where a root correctly is not a keyword because no `.` follows it. They are covered by the
   // hand-named assertions above instead.
   const { bare, dashed } = contextualWordsFromSpec()
-  expect(bare.length).toBe(140)
-  expect(dashed.length).toBe(57)
+  expect(bare.length).toBe(141)
+  expect(dashed.length).toBe(59)
 })
 
 test('every reserved word is classified as a keyword by the grammar', () => {

@@ -2,7 +2,7 @@ language keiro-dsl 6
 context incident-desk
 
 id IncidentId prefix=inc
-id TemplateId prefix=template
+id TemplateId prefix=template domain=typeid-v7
 enum Severity { Sev1=sev1 Sev2=sev2 }
 
 mapped structural record TemplateBook {
