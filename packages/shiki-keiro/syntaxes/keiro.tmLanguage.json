@@ -34,8 +34,8 @@
       ]
     },
     "dashed-keywords": {
-      "comment": "`keiro-dsl` is the dialect name in the `language keiro-dsl 1` version preamble. It is the one entry here whose leading segment is not itself a keyword, so it needs no ordering care beyond being in this rule at all — without it the spelling falls through as plain text.",
-      "match": "(?<![A-Za-z0-9_-])(?:status-map|dispatch-id|fired-event-id|dispatch-each|read-model|keiro-dsl|on-appended|on-duplicate|on-failed|on-ok|on-reject|on-error|on-ambiguous|on-blocked|on-terminal|on-missing|not-mine|unknown-status|unknown-fields|max-attempts|dead-letter|kafka-key|kafka-cursor|cross-check|state-codec|shape-hash|full-envelope|dedupe-only|entire-log|fifo-throughput|fifo-roundrobin|binding-version|canonical-type|tagged-object|depends-on|schema-version|provisioner-version|expected-shape|validator-version|owned-sequence|result-schema|result-type|compatible-revisions|surface-generation|checkpoint-on-missing|from-beginning|from-current-head|live-only|wait-for-head|fifo-heads|domain-outcomes|no-op|no-action|max-recipients)(?![A-Za-z0-9_-])",
+      "comment": "`keiro-dsl` is the dialect name in the `language keiro-dsl 1` version preamble, and `base16-bytes` (keiro-dsl e548fffd) is the one wire policy a `mapped refined` declaration may name — read immediately after `wire`, exactly as `tagged-object` is. Those two are the entries here whose leading segment is not itself a keyword, so they need no ordering care beyond being in this rule at all — without it the spelling falls through as plain text. `base16-bytes` is also the first keyword in the language to contain a digit; it is safe from #numbers both because this rule is listed earlier and because every numeric alternative there requires a `\\b` before the digits, which `base16` does not offer.",
+      "match": "(?<![A-Za-z0-9_-])(?:status-map|dispatch-id|fired-event-id|dispatch-each|read-model|keiro-dsl|base16-bytes|on-appended|on-duplicate|on-failed|on-ok|on-reject|on-error|on-ambiguous|on-blocked|on-terminal|on-missing|not-mine|unknown-status|unknown-fields|max-attempts|dead-letter|kafka-key|kafka-cursor|cross-check|state-codec|shape-hash|full-envelope|dedupe-only|entire-log|fifo-throughput|fifo-roundrobin|binding-version|canonical-type|tagged-object|depends-on|schema-version|provisioner-version|expected-shape|validator-version|owned-sequence|result-schema|result-type|compatible-revisions|surface-generation|checkpoint-on-missing|from-beginning|from-current-head|live-only|wait-for-head|fifo-heads|domain-outcomes|no-op|no-action|max-recipients)(?![A-Za-z0-9_-])",
       "name": "keyword.control.keiro"
     },
     "dashed-introducers": {
@@ -55,8 +55,8 @@
       }
     },
     "mapped-decl-with-name": {
-      "comment": "The family or shape word of a `mapped` declaration plus the type name it names. Listed before #modifiers so it wins the same-position tie and can claim both tokens; its first capture keeps the Modifier scope those four words carry on their own. `nominal` is the third family (`mapped nominal X : Text { ... }`), added by keiro-dsl fcd6748.",
-      "match": "(?<![A-Za-z0-9_-])(record|union|opaque|nominal)(?![A-Za-z0-9_-])\\s+([A-Za-z_][A-Za-z0-9_]*)",
+      "comment": "The family or shape word of a `mapped` declaration plus the type name it names. Listed before #modifiers so it wins the same-position tie and can claim both tokens; its first capture keeps the Modifier scope those five words carry on their own. `nominal` is the third family (`mapped nominal X : Text { ... }`), added by keiro-dsl fcd6748; `refined` is the fourth (`mapped refined X { ... wire base16-bytes }`), added by keiro-dsl e548fffd. Adding `refined` to #modifiers alone would leave the name after it plain, because that rule ends its match at the word and no rule below claims a bare identifier.",
+      "match": "(?<![A-Za-z0-9_-])(record|union|opaque|nominal|refined)(?![A-Za-z0-9_-])\\s+([A-Za-z_][A-Za-z0-9_]*)",
       "captures": {
         "1": { "name": "storage.modifier.keiro" },
         "2": { "name": "entity.name.type.keiro" }
@@ -76,8 +76,8 @@
       "name": "keyword.declaration.keiro"
     },
     "modifiers": {
-      "comment": "`nominal` joins `structural` and `opaque` as a `mapped` family word: `pMappedTopItem` upstream reads `keyword \"mapped\"` and then chooses between the three, so all three qualify the declaration `mapped` introduces rather than introducing one.",
-      "match": "(?<![A-Za-z0-9_])(?:deprecated|retiring|upcast|from|consistency|required|optional|stable|strategy|via|policy|prefix|kind|structural|opaque|nominal|record|union|once|silent|declarative)(?![A-Za-z0-9_])",
+      "comment": "`nominal` and `refined` join `structural` and `opaque` as `mapped` family words: `pMappedTopItem` upstream reads `keyword \"mapped\"` and then chooses between the four, so all four qualify the declaration `mapped` introduces rather than introducing one. `refined` (keiro-dsl e548fffd) selects the checked-byte-refinement family and, unlike the shape word `value`, has no second role anywhere in the language, so nothing competes for its class. Matched unconditionally, which means the `refined` segment of a dashed wire word such as `context refined-base16` is claimed too — the trailing guard excludes identifier characters but not `-`. That is the long-standing behaviour every family word already has (`structural` inside `context structural-text-sets`) and it keeps this package in step with the Vim one, where `-` is likewise not a keyword character.",
+      "match": "(?<![A-Za-z0-9_])(?:deprecated|retiring|upcast|from|consistency|required|optional|stable|strategy|via|policy|prefix|kind|structural|opaque|nominal|refined|record|union|once|silent|declarative)(?![A-Za-z0-9_])",
       "name": "storage.modifier.keiro"
     },
     "constants": {

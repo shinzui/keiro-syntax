@@ -81,11 +81,19 @@ syntax match keiroKeyword /\<\%(rebuild-group\|projection-revision\|external-rea
 " so it is matched with the '-\@!' guard further down rather than listed here.
 syntax keyword keiroModifier deprecated retiring upcast consistency required stable
 syntax keyword keiroModifier strategy via policy prefix kind
-" `structural` / `opaque` / `nominal` select a mapped declaration's family and `record` /
-" `union` its shape; `optional` is `required`'s partner on a mapped wire field. All qualify the
-" declaration `mapped` introduces rather than introducing one, so all are modifiers.
+" `structural` / `opaque` / `nominal` / `refined` select a mapped declaration's family and
+" `record` / `union` its shape; `optional` is `required`'s partner on a mapped wire field. All
+" qualify the declaration `mapped` introduces rather than introducing one, so all are modifiers.
 " `nominal` is the third family, added by keiro-dsl fcd6748: `mapped nominal X : Text { ... }`.
-syntax keyword keiroModifier structural opaque nominal record union optional
+" `refined` is the fourth, added by keiro-dsl e548fffd: `mapped refined X { ... wire base16-bytes }`,
+" a checked byte refinement whose admission and canonicalization keiro owns. Unlike the shape word
+" `value` it has no second role anywhere in the language, so it joins the family words rather than
+" the statements. Matched unconditionally like every other word here, which means the `refined`
+" segment of a dashed wire word such as `context refined-base16` is coloured too — '-' is not a
+" keyword character, so that segment is a whole word to Vim. That is long-standing behaviour shared
+" by every dashed wire word in the corpus (`structural` inside `context structural-text-sets`), not
+" something this word introduces.
+syntax keyword keiroModifier structural opaque nominal refined record union optional
 " The `replay-only` transition prefix is dashed, and '-' is not a keyword character, so it
 " needs 'match' and must cover the whole spelling — otherwise `replay` and `only` are seen
 " as two separate words and the marker is left plain.
@@ -154,6 +162,15 @@ syntax match keiroStatement /\<\%(state-codec\|shape-hash\|full-envelope\|dedupe
 syntax match keiroStatement /\<\%(entire-log\|fifo-throughput\|fifo-roundrobin\)\>/
 syntax match keiroStatement /\<\%(on-blocked\|on-missing\|unknown-fields\)\>/
 syntax match keiroStatement /\<\%(binding-version\|canonical-type\|tagged-object\)\>/
+" `base16-bytes` is the one wire policy a `mapped refined` declaration may name (keiro-dsl
+" e548fffd, `keyword "wire" *> keyword "base16-bytes"` in Parser/Mapped.hs) — the same position and
+" the same parser shape as `tagged-object` above, so the same class. It is the second dashed word
+" here whose leading segment is not itself a keyword (`keiro-dsl` is the other), so unlike `on-ok`
+" or `binding-version` it needs no '-\@!' guard on a bare prefix; it only has to be matched at all,
+" so the whole spelling is one token. It is also the first keyword in the language to contain a
+" digit, and it is safe from the keiroNumber matches above because those all require '\<' before
+" the digits: in `base16` the '1' follows the word character 'e', so no such boundary exists.
+syntax match keiroStatement /\<\%(base16-bytes\)\>/
 " `keiro-dsl` is the dialect name in the version preamble. It is the one dashed word here
 " whose leading segment is not itself a keyword — `keiro` and `dsl` mean nothing to this file
 " — so unlike `on-ok` or `dispatch-each` it needs no '-\@!' guard on a bare prefix. It only
@@ -219,8 +236,9 @@ syntax match keiroOperator /||/
 syntax match keiroOperator /[<>@!+*]/
 
 " --- Declaration-site type name (optional refinement) ---------------------
-" `record` / `union` / `opaque` / `nominal` are a mapped declaration's shape and family words,
-" listed here so this rule stays in step with Section 6 of spec/keiro-dsl-language-model.md.
+" `record` / `union` / `opaque` / `nominal` / `refined` are a mapped declaration's shape and family
+" words, listed here so this rule stays in step with Section 6 of spec/keiro-dsl-language-model.md.
+" `refined` is the newest of them (keiro-dsl e548fffd).
 " `value` is the fourth shape word (`mapped structural value MaybeText`, keiro-dsl a6110a94). It
 " is listed here for the same Section 6 parity even though, unlike the four beside it, it is a
 " keiroStatement rather than a keiroModifier: one word gets one class, and `value` is also the
@@ -236,7 +254,7 @@ syntax match keiroOperator /[<>@!+*]/
 " is compliant; the Shiki package does implement it. Making it work in Vim means restructuring
 " the introducer declarations to carry 'nextgroup=keiroTypeName skipwhite' with a 'contained'
 " keiroTypeName, which is a change to every introducer line and is left to a future plan.
-syntax match keiroTypeName /\<\%(aggregate\|enum\|contract\|command\|event\|workflow\|operation\|process\|id\|rule\|record\|union\|opaque\|nominal\|value\)\s\+\zs\u\w*/
+syntax match keiroTypeName /\<\%(aggregate\|enum\|contract\|command\|event\|workflow\|operation\|process\|id\|rule\|record\|union\|opaque\|nominal\|refined\|value\)\s\+\zs\u\w*/
 
 " --- Highlight links ------------------------------------------------------
 highlight default link keiroComment      Comment

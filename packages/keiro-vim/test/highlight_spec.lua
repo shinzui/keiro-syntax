@@ -887,6 +887,69 @@ expect_no_group('emit TicketSettled', 11)
 open('corpus/reservation.keiro')
 expect_no_group('prefix=cmd', 7)
 
+-- The fourth `mapped` family: refined byte policies (keiro-dsl e548fffd).
+--
+-- `mapped refined X { ... wire base16-bytes }` hands admission and canonicalization of a value to
+-- a keiro-owned policy. It costs exactly two words — the bare family word `refined` and the dashed
+-- wire policy `base16-bytes` — and every other clause label in the block is borrowed from the three
+-- older families, so this block is the whole of the new surface. The defect before these rules:
+-- `mapped` coloured beside a plain `refined`, and `wire` coloured beside a plain `base16-bytes`.
+open('corpus/mapped-refined-base16.keiro')
+expect('mapped refined ContentHash', 'keiroKeyword')
+expect_uniform('refined', 'keiroModifier', 'mapped refined ContentHash')
+-- The name after the family word stays plain under Vim, exactly as it does after `nominal` and
+-- `opaque`: the keiroTypeName rule that would claim it has been inert since it was written, because
+-- 'syntax keyword' outranks a 'syntax match' beginning at the same column and the scan resumes past
+-- the introducer. Section 6 of spec/keiro-dsl-language-model.md marks that class an *optional*
+-- refinement, so this is compliant; the Shiki package does claim the name. Offset 15 is the `C`.
+expect_no_group('mapped refined ContentHash', 15)
+-- The wire policy, in one whole token. A rule matching only a leading segment would leave `-bytes`
+-- plain and a first-character check would pass anyway, which is the failure mode the dashed matches
+-- exist to prevent. `base16-bytes` is also the first keyword in the language to contain a digit, so
+-- requiring one uniform group over all twelve characters doubles as the guard that no keiroNumber
+-- match splits it — none can, because they all require '\<' before the digits and in `base16` the
+-- '1' follows the word character 'e'.
+expect('wire base16-bytes', 'keiroStatement')
+expect_uniform('base16-bytes', 'keiroStatement')
+-- `module=Conformance.RefinedBase16.Domain` is an *unquoted* slot, so no string rule protects it,
+-- and it carries both new spellings in capitalised form inside one identifier. 'syntax keyword' is
+-- case sensitive, which is the only thing keeping them out of it. Offset 19 is the `R` of
+-- `Refined` and offset 26 the `B` of `Base16`.
+expect_no_group('module=Conformance.RefinedBase16.Domain', 19)
+expect_no_group('module=Conformance.RefinedBase16.Domain', 26)
+-- `shape-hash="refined-base16-v1"` is the corpus's only place where a keyword spelling sits inside
+-- a string that is not a comment. keiroString is a region that admits only keiroStringEscape, so
+-- every character of the literal must be keiroString and none of it a modifier — while the clause
+-- label in front of it keeps its own group, proving the region wins only where it should.
+expect_uniform('shape-hash', 'keiroStatement')
+expect_uniform('"refined-base16-v1"', 'keiroString')
+-- `context refined-base16` is a user-chosen wire word whose first segment is spelled exactly like
+-- the family word, and Vim DOES colour that segment: '-' is not a keyword character, so `refined`
+-- there is a whole word. That is long-standing behaviour shared by every dashed wire word in the
+-- corpus (`structural` inside `context structural-text-sets`), pinned here so a future "fix" has to
+-- be deliberate. What must stay plain is the tail, where the digits live: offset 16 is its `b`.
+expect_uniform('refined', 'keiroModifier', 'context refined-base16')
+expect_no_group('context refined-base16', 16)
+-- The sibling declaration heads and the borrowed clause labels, unchanged by this range.
+expect('mapped structural value MaybeContentHash', 'keiroKeyword')
+expect_uniform('structural', 'keiroModifier', 'mapped structural value MaybeContentHash')
+expect_uniform('value', 'keiroStatement', 'mapped structural value MaybeContentHash')
+expect_uniform('record', 'keiroModifier', 'mapped structural record HashEnvelope')
+expect('haskell package', 'keiroStatement')
+expect_uniform('binding-version', 'keiroStatement')
+expect_uniform('canonical-type', 'keiroStatement')
+expect_uniform('unknown-fields', 'keiroStatement')
+-- The nodes beneath the declarations must be undisturbed, including this file's `replay-only`
+-- transition and its `snapshot` block, which is where the string literal above lives.
+expect('aggregate HashStore', 'keiroKeyword')
+expect_uniform('replay-only', 'keiroModifier')
+expect('workqueue hash_jobs', 'keiroKeyword')
+expect_uniform('rebuild-group', 'keiroKeyword')
+expect_uniform('projection-owner', 'keiroKeyword')
+expect('readmodel hash_lookup', 'keiroKeyword')
+-- The version-6 preamble this file needs, which colours as any other preamble does.
+expect_uniform('keiro-dsl', 'keiroStatement', 'language keiro-dsl 6')
+
 -- Spec word-list coverage guards.
 --
 -- `retiring` joined the parser's `reservedWords` in keiro-dsl 75286d7 without changing how the
@@ -1006,15 +1069,17 @@ local bare, dashed = contextual[1], contextual[2]
 -- binding words `nominal` and `using`, both bare. 99 -> 100 at keiro-dsl 8b0f55b, which added
 -- the transition clause word `implementation`. 100 -> 139 and 32 -> 56 at keiro-dsl 9fb54d56,
 -- the Language 5 and 6 surface: 39 bare and 24 dashed words (the four dashed projection-catalog
--- introducers among them). Section 3 is unchanged throughout: none of those words is reserved.
+-- introducers among them). 139 -> 140 and 56 -> 57 at keiro-dsl e548fffd, which added the fourth
+-- `mapped` family: the bare family word `refined` and the dashed wire policy `base16-bytes`.
+-- Section 3 is unchanged throughout: none of those words is reserved.
 --
 -- The scalar expression roots `reg` and `cmd` are deliberately NOT in the bare grid, even
 -- though keiro.vim colours them: expect_all_keywordish probes each grid word in a scratch
 -- buffer one word per line, where a root correctly is not a keyword because no '.' follows it.
 -- They are covered by the hand-named assertions above instead.
 expect_count('reserved-word', #reserved, 72)
-expect_count('bare contextual-keyword', #bare, 139)
-expect_count('dashed contextual-keyword', #dashed, 56)
+expect_count('bare contextual-keyword', #bare, 140)
+expect_count('dashed contextual-keyword', #dashed, 57)
 
 expect_all_keywordish('reserved', reserved)
 expect_all_keywordish('contextual', bare)

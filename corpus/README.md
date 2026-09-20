@@ -169,6 +169,36 @@ Copied later, as the parser's lexical surface grew:
   copy proves both packages tokenize text that really is valid keiro-dsl. It backs the
   reconciliation recorded in
   `docs/plans/20-highlight-the-keiro-dsl-set-text-structural-text-set-type-spelling.md`.
+- `mapped-refined-base16.keiro` — copied on 2026-09-20 at keiro-dsl commit
+  `e548fffd21f385321c7d5e42c1cbb020243c1e2b`, from that commit's
+  `keiro-dsl/test/fixtures/refined-base16.keiro`. It is the corpus's sample of the **checked base16
+  byte refinement**, the fourth family of the `mapped` declaration: `mapped refined X { … wire
+  base16-bytes }`, in which keiro itself owns admission and canonicalization of the value — which
+  byte strings are accepted and how they are written back out — while the consumer supplies only the
+  Haskell binding. It is the corpus's only sample of that family, and the only file in which the two
+  words keiro-dsl `e548fffd` added appear at all: the bare family word `refined` and the dashed wire
+  policy `base16-bytes`, the one policy the grammar admits. Every other clause label in the block
+  (`haskell`, `binding`, `binding-version`, `canonical-type`, `fixtures`, `initial`) is borrowed from
+  the three older families, so the two new words are the whole of the new surface. Beneath the
+  declarations the file consumes the declared types again in a `mapped structural value`, a
+  `mapped structural record`, an `aggregate` with a `replay-only` transition and a `snapshot`
+  block, a `workqueue` with typed payload fields and a `disposition` table, a `target` /
+  `rebuild-group` / `projection-owner` projection catalog, and a `readmodel`, so both suites can
+  check that the new family leaves the rest of the file tokenizing normally. It is also where both
+  suites pin the three collisions the two new words bring with them, all of them inside this one
+  file: the **unquoted** Haskell module path `module=Conformance.RefinedBase16.Domain`, where the
+  capitalised `Refined` and `Base16` must stay plain because both packages match case-sensitively;
+  the **quoted** `shape-hash="refined-base16-v1"`, the corpus's only place where a keyword spelling
+  sits inside a string that is not a comment, where the string rule must win; and the context name
+  `context refined-base16`, whose first segment both packages *do* colour — `-` is not a word
+  character in either engine — exactly as they colour `structural` inside
+  `context structural-text-sets`. It is upstream's authoritative fixture for the feature —
+  `keiro-dsl/test/Main.hs` reads it with `readTestText`, parses it with `checkedServiceFromText`,
+  round-trips it through the pretty-printer, scaffolds generated modules from it, asserts the
+  runtime profile carries `RefinedBase16Mappings`, and asserts that the same text under a
+  `language keiro-dsl 5` preamble is refused — so a verbatim copy proves both packages tokenize text
+  that really is valid keiro-dsl. It backs the reconciliation recorded in
+  `docs/plans/21-highlight-the-keiro-dsl-mapped-refined-declaration-family-and-its-base16-bytes-wire-policy.md`.
 
 The remaining files are **hand-written for this repository**:
 

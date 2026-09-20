@@ -230,6 +230,10 @@ const workflowSignal = readFileSync(
 )
 const calendarDays = readFileSync(resolve(repoRoot, 'corpus/mapped-calendar-days.keiro'), 'utf8')
 const textSets = readFileSync(resolve(repoRoot, 'corpus/mapped-text-sets.keiro'), 'utf8')
+const refinedBase16 = readFileSync(
+  resolve(repoRoot, 'corpus/mapped-refined-base16.keiro'),
+  'utf8',
+)
 
 test('comments get the comment scope', () => {
   expectScope(sampler, '# keiro-dsl lexical sampler — comments, strings, numbers, durations, versions', 'comment.line.number-sign.keiro')
@@ -1423,6 +1427,134 @@ test('a text-set mapping leaves the rest of the file tokenizing normally', () =>
   expectWholeToken(textSets, 'keiro-dsl', 'keyword.control.keiro', 'language keiro-dsl 6')
 })
 
+// --- The fourth mapped family: refined byte policies (keiro-dsl e548fffd) ----------------
+//
+// `mapped refined X { … wire base16-bytes }` hands admission and canonicalization of a value to
+// a keiro-owned policy. It costs exactly two words: the bare family word `refined` and the dashed
+// wire policy `base16-bytes`. Every other clause label in the block is borrowed from the three
+// older families, so these two blocks are the whole of the new surface.
+
+test('the refined family word is a modifier and the name after it is a declaration-site type name', () => {
+  // The defect before this rule: `mapped` coloured, `refined` plain, `ContentHash` plain — where
+  // the three sibling families all render all three words. #mapped-decl-with-name is what claims
+  // the name; #modifiers alone would end the match at `refined` and leave `ContentHash` plain.
+  expectWholeToken(refinedBase16, 'mapped', 'keyword.declaration.keiro', 'mapped refined ContentHash')
+  expectWholeToken(
+    refinedBase16,
+    'refined',
+    'storage.modifier.keiro',
+    'mapped refined ContentHash',
+  )
+  expectScope(refinedBase16, 'ContentHash', 'entity.name.type.keiro')
+  // And it really is the declaration head that claims the name, not some later rule: on that line
+  // `ContentHash` is one whole token with the type-name scope and nothing else keyword-ish.
+  const parts = partsOfLine(refinedBase16, 'mapped refined ContentHash')
+  expect(parts, 'the `mapped refined ContentHash` line was not found').not.toBeNull()
+  const name = parts!.find((p) => p.content === 'ContentHash')
+  expect(name, 'ContentHash was split on the declaration head line').toBeDefined()
+  expect(name!.scopes.map((s) => s.scopeName)).toContain('entity.name.type.keiro')
+})
+
+test('the base16-bytes wire policy is one whole control keyword', () => {
+  // The whole-token form is the assertion that matters. A rule matching only a leading segment
+  // would leave `-bytes` plain and a first-character check would pass anyway — the failure mode
+  // the dashed rules exist to prevent. `base16-bytes` is also the first keyword in the language
+  // to contain a digit, so this doubles as the guard that no #numbers alternative splits it.
+  expectWholeToken(refinedBase16, 'wire', 'keyword.control.keiro', 'wire base16-bytes')
+  expectWholeToken(refinedBase16, 'base16-bytes', 'keyword.control.keiro')
+  const parts = partsOfLine(refinedBase16, 'wire base16-bytes')
+  expect(parts, 'the `wire base16-bytes` line was not found').not.toBeNull()
+  expect(
+    parts!.filter((p) => p.scopes.some((s) => s.scopeName === 'constant.numeric.keiro')).length,
+    'a number rule claimed part of `base16-bytes`',
+  ).toBe(0)
+})
+
+test('the refined rules are case-sensitive in an unquoted Haskell module path', () => {
+  // `module=Conformance.RefinedBase16.Domain` is an *unquoted* slot, so no string rule protects
+  // it, and it carries both new spellings in capitalised form inside one identifier. Case
+  // sensitivity is the only thing keeping them out of it.
+  const parts = partsOfLine(refinedBase16, 'module=Conformance.RefinedBase16.Domain')
+  expect(parts, 'the haskell source line was not found').not.toBeNull()
+  expect(
+    parts!.filter((p) => p.content === 'Refined' || p.content === 'Base16').map((p) => p.content),
+    'a rule was split out of `RefinedBase16`',
+  ).toEqual([])
+  const path = parts!.find((p) => p.content.includes('Conformance.RefinedBase16.Domain'))!
+  expect(path.scopes.filter((s) => KEYWORDISH_SCOPES.has(s.scopeName))).toEqual([])
+})
+
+test('a refined family word inside a string literal stays a string', () => {
+  // `shape-hash="refined-base16-v1"` is the corpus's only place where a keyword spelling sits
+  // inside a string that is not a comment. #strings is listed second in the top-level patterns
+  // array, before every word rule, and its only inner pattern is the escape rule — so the whole
+  // literal must be String and nothing inside it may be a modifier.
+  const parts = partsOfLine(refinedBase16, 'shape-hash="refined-base16-v1"')
+  expect(parts, 'the state-codec line was not found').not.toBeNull()
+  const inside = parts!.find((p) => p.content.includes('refined-base16-v1'))
+  expect(inside, '`refined-base16-v1` was split out of its string literal').toBeDefined()
+  expect(inside!.scopes.map((s) => s.scopeName)).toContain('string.quoted.double.keiro')
+  expect(inside!.scopes.filter((s) => KEYWORDISH_SCOPES.has(s.scopeName))).toEqual([])
+  // The clause label in front of the string keeps its own class, so the string rule is winning
+  // where it should and only where it should.
+  expectWholeToken(refinedBase16, 'shape-hash', 'keyword.control.keiro')
+})
+
+test('the refined segment of the context wire word is coloured and its tail is not', () => {
+  // `context refined-base16` is a user-chosen wire word whose first segment is spelled exactly
+  // like the family word, and both packages DO colour that segment: the trailing guard excludes
+  // identifier characters but not `-`, and in Vim `-` is not a keyword character either. This is
+  // long-standing behaviour shared by every dashed wire word in the corpus (`structural` inside
+  // `context structural-text-sets`), pinned here so a future "fix" has to be deliberate. What
+  // must stay plain is the tail, where the digits live.
+  const parts = partsOfLine(refinedBase16, 'context refined-base16')
+  expect(parts, 'the context line was not found').not.toBeNull()
+  const head = parts!.find((p) => p.content === 'refined')!
+  expect(head.scopes.map((s) => s.scopeName)).toContain('storage.modifier.keiro')
+  const tail = parts!.find((p) => p.content.includes('base16'))!
+  expect(tail.content, 'the wire word tail was split').toBe('-base16')
+  expect(tail.scopes.filter((s) => KEYWORDISH_SCOPES.has(s.scopeName))).toEqual([])
+  expect(tail.scopes.map((s) => s.scopeName)).not.toContain('constant.numeric.keiro')
+})
+
+test('a refined mapping leaves the rest of the file tokenizing normally', () => {
+  // The sibling declaration heads, unchanged by this range.
+  expectWholeToken(
+    refinedBase16,
+    'structural',
+    'storage.modifier.keiro',
+    'mapped structural value MaybeContentHash',
+  )
+  expectWholeToken(
+    refinedBase16,
+    'value',
+    'keyword.control.keiro',
+    'mapped structural value MaybeContentHash',
+  )
+  expectScope(refinedBase16, 'MaybeContentHash', 'entity.name.type.keiro')
+  expectWholeToken(
+    refinedBase16,
+    'record',
+    'storage.modifier.keiro',
+    'mapped structural record HashEnvelope',
+  )
+  expectScope(refinedBase16, 'HashEnvelope', 'entity.name.type.keiro')
+  // The clause labels the refined block borrows from the older families.
+  expectScope(refinedBase16, 'haskell', 'keyword.control.keiro')
+  expectWholeToken(refinedBase16, 'binding-version', 'keyword.control.keiro')
+  expectWholeToken(refinedBase16, 'canonical-type', 'keyword.control.keiro')
+  expectWholeToken(refinedBase16, 'unknown-fields', 'keyword.control.keiro')
+  // The nodes beneath the declarations, including this file's `replay-only` transition.
+  expectScope(refinedBase16, 'aggregate', 'keyword.declaration.keiro')
+  expectWholeToken(refinedBase16, 'replay-only', 'storage.modifier.keiro')
+  expectScope(refinedBase16, 'workqueue', 'keyword.declaration.keiro')
+  expectWholeToken(refinedBase16, 'rebuild-group', 'keyword.declaration.keiro')
+  expectWholeToken(refinedBase16, 'projection-owner', 'keyword.declaration.keiro')
+  expectScope(refinedBase16, 'readmodel', 'keyword.declaration.keiro')
+  // The version-6 preamble this file needs, which colours as any other preamble does.
+  expectWholeToken(refinedBase16, 'keiro-dsl', 'keyword.control.keiro', 'language keiro-dsl 6')
+})
+
 // --- Spec word-list coverage guards -----------------------------------------
 //
 // `retiring` joined the parser's `reservedWords` in keiro-dsl 75286d7 without changing how
@@ -1442,21 +1574,23 @@ test('the spec Section 3 list holds the parser 72 reserved words', () => {
   expect(reservedWordsFromSpec().length).toBe(72)
 })
 
-test('the spec Section 4 lists 139 bare and 56 dashed contextual keywords', () => {
+test('the spec Section 4 lists 140 bare and 57 dashed contextual keywords', () => {
   // 96 -> 97 and 31 -> 32 at keiro-dsl 4523b52, which added the version preamble's `language`
   // (bare) and `keiro-dsl` (dashed). 97 -> 99 at keiro-dsl fcd6748, which added the nominal
   // binding words `nominal` and `using`, both bare. 99 -> 100 at keiro-dsl 8b0f55b, which added
   // the transition clause word `implementation`. 100 -> 139 and 32 -> 56 at keiro-dsl 9fb54d56,
   // the Language 5 and 6 surface: 39 bare and 24 dashed words (the four dashed projection-catalog
-  // introducers among them). Section 3 is unchanged throughout: none of those words is reserved.
+  // introducers among them). 139 -> 140 and 56 -> 57 at keiro-dsl e548fffd, which added the fourth
+  // `mapped` family: the bare family word `refined` and the dashed wire policy `base16-bytes`.
+  // Section 3 is unchanged throughout: none of those words is reserved.
   //
   // The scalar expression roots `reg` and `cmd` are deliberately NOT in the bare grid, even
   // though both packages colour them: this guard probes each grid word in a one-word document,
   // where a root correctly is not a keyword because no `.` follows it. They are covered by the
   // hand-named assertions above instead.
   const { bare, dashed } = contextualWordsFromSpec()
-  expect(bare.length).toBe(139)
-  expect(dashed.length).toBe(56)
+  expect(bare.length).toBe(140)
+  expect(dashed.length).toBe(57)
 })
 
 test('every reserved word is classified as a keyword by the grammar', () => {

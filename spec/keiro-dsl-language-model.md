@@ -169,6 +169,21 @@ Section 6's Primitive-type row, where the type vocabulary of this language lives
 therefore still 72 words and Section 4 still 139 bare and 56 dashed, and the registry still holds
 six versions. `corpus/mapped-text-sets.keiro` is the sample both packages tokenize.
 
+**Version 6 has since gained a fourth late feature, and this one costs two words — the first
+arrivals since Language 6 itself.** keiro-dsl commit `e548fffd` added `RefinedBase16Syntax` to
+syntax profile `keiro-dsl/syntax-profile/5` (and the runtime capability `RefinedBase16Mappings` to
+`keiro-dsl/runtime-semantics/5`). It is the **checked base16 byte refinement**: a fourth family of
+the `mapped` declaration, written `mapped refined X { … wire base16-bytes }`, in which keiro itself
+owns admission and canonicalization of the value — which byte strings are accepted and how they are
+written back out — and the consumer supplies only the Haskell binding. Exactly one policy exists,
+named by the two-segment word `base16-bytes` after `wire`. Unlike the three features before it, both
+new words are **clause vocabulary** rather than type vocabulary, so both land in Section 4 rather
+than in Section 6's Primitive-type row: `refined` in the bare grid, which goes from 139 words to
+**140**, and `base16-bytes` in the dashed grid, which goes from 56 to **57**. Section 3 is still 72
+words — `keiro-dsl/src/Keiro/Dsl/Parser/Core.hs`, which owns `reservedWords`, is untouched by the
+commit — and the registry still holds six versions. `corpus/mapped-refined-base16.keiro` is the
+sample both packages tokenize.
+
 Since keiro-dsl commit `8b0f55b` version 2 is also the contract for the **scalar expression
 sublanguage** described in Section 4, which adds four more gated spellings: the type name
 `Integer`, the transition clause `implementation hole`, and the two expression roots `reg.` and
@@ -422,6 +437,7 @@ backing      accepted    rejection   reactions   when        otherwise
 silent       cancel      once        timers      declarative identity
 with         where       recipient   empty       failure     redelivery
 ack          idempotence delegated
+refined
 ```
 
 The last three-and-a-bit rows — `as` through `using` — are the **mapped type declaration**
@@ -442,6 +458,12 @@ The seven rows after `using` — `reset` through `delegated`, 39 words — are t
 section. They are listed in the order the plan that added them met them in the parser, not
 alphabetically.
 
+The final row holds the newest arrival, `refined` (keiro-dsl commit `e548fffd`), the family word of
+the **checked base16 byte refinement** — the fourth `mapped` family, described with the other three
+in "The mapped type declaration" below. Like `structural`, `opaque`, and `nominal` it is a
+**Modifier** in Section 6, not a control keyword. It sits on a row of its own rather than at the end
+of the row above so the sentence naming the Language 5 and 6 rows stays true as written.
+
 ### Dashed contextual keywords (match-before-bare-words)
 
 A small set of node/section words written **with dashes** appear in process timers and
@@ -460,13 +482,18 @@ depends-on     schema-version  provisioner-version expected-shape validator-vers
 owned-sequence result-schema   result-type   compatible-revisions surface-generation
 checkpoint-on-missing from-beginning from-current-head live-only wait-for-head
 fifo-heads     domain-outcomes no-op         no-action     max-recipients
+base16-bytes
 ```
 
 `keiro-dsl` is the dialect name in the **version preamble** described in its own subsection
-below. The last five rows — `rebuild-group` through `max-recipients`, 24 words — are the dashed
+below. The five rows from `rebuild-group` through `max-recipients` — 24 words — are the dashed
 half of the **Language 5 and 6 surface** described at the end of this section; the first four of
-them are **Declaration introducers**, the only dashed introducers in the language. The last five — `binding-version` through `unknown-fields` — belong to the **mapped
-type declaration** described after it. `cross-check` is not new: it is a real `keyword "cross-check"`
+them are **Declaration introducers**, the only dashed introducers in the language. The five words
+`binding-version`, `canonical-type`, `on-missing`, `tagged-object`, and `unknown-fields` belong to
+the **mapped type declaration** described after it, and so does the newest arrival on the final row,
+`base16-bytes` (keiro-dsl commit `e548fffd`) — the one wire policy a `mapped refined` declaration
+may name. It sits on a row of its own so the sentence above it stays true as written.
+`cross-check` is not new: it is a real `keyword "cross-check"`
 in `Parser.hs` (it appears in an intake `bind messageId from header "…" required cross-check
 body` clause) that both packages have matched since the reconciliation recorded in
 `docs/plans/4-reconcile-highlighters-with-keiro-dsl-lexical-surface-20-new-reserved-words-string-escapes-signed-decimal-numbers.md`;
@@ -516,10 +543,16 @@ word declared as a `syntax match … /\<word\>-\@!/` rather than a `syntax keywo
 Vim's `syntax keyword` outranks a `syntax match` that begins at the same column. A TextMate
 grammar needs no such trick, only the dashed rule listed earlier in its `patterns` array.
 
-`keiro-dsl` is the one entry in the dashed list whose leading segment is **not** a keyword at
-all — `keiro` means nothing to either package, and neither does `dsl` — so it needs neither
-the `-\@!` treatment nor any reordering. It needs only to *be* in the dashed rule, so the
-whole spelling is claimed as one token instead of falling through as plain text.
+Two entries in the dashed list have a leading segment that is **not** a keyword at all, and the
+same conclusion follows for both. `keiro-dsl` is the older one — `keiro` means nothing to either
+package, and neither does `dsl` — and `base16-bytes` (keiro-dsl `e548fffd`) is the newer: `base16`
+is no word this language knows, and neither is `bytes`. Neither needs the `-\@!` treatment and
+neither needs any reordering. Each needs only to *be* in the dashed rule, so the whole spelling is
+claimed as one token instead of falling through as plain text. `base16-bytes` is also the first
+keyword in the language to contain a **digit**, and it is safe from every number rule in both
+packages for a reason worth stating: both require a word boundary before a numeric literal (Vim's
+`\<\d\+\>`, the TextMate `\b[0-9]+\b`), and in `base16` the `1` is preceded by the word character
+`e`, so no boundary exists there.
 
 ### The language version preamble
 
@@ -576,8 +609,8 @@ previously recorded the other two as a parser trap, and that trap is gone.
 
 A `.keiro` file can declare a **consumer-owned mapped type**: a Haskell data type that lives
 in a *different* package, together with an explicit description of how it is encoded on the
-wire. The declaration begins with the reserved word `mapped` (Section 3) and supplies 28 of
-this section's curated words — 23 bare and 5 dashed. None of them is reserved, because
+wire. The declaration begins with the reserved word `mapped` (Section 3) and supplies 30 of
+this section's curated words — 24 bare and 6 dashed. None of them is reserved, because
 everything inside the declaration's `{ … }` braces is unambiguous without reservation, so a
 reader of Section 3 alone would never learn that these words exist. Hence this subsection.
 
@@ -586,9 +619,11 @@ Since keiro-dsl commit `a6110a94` the declaration also **borrows** one word it d
 carried in its bare grid since plan 4 as the last clause word of a workflow signal operation. It
 is a borrowing rather than an arrival, so the counts above are unchanged.
 
-There are three families. Two of them describe a *structure*, and are covered first;
-`mapped nominal …`, added by keiro-dsl commit `fcd6748`, describes an *identity* and is
-covered in "Nominal bindings" at the end of this subsection.
+There are four families. Two of them describe a *structure*, and are covered first;
+`mapped refined …`, added by keiro-dsl commit `e548fffd`, hands the encoding to a keiro-owned
+policy and is covered in "Refined byte policies" below; and `mapped nominal …`, added by keiro-dsl
+commit `fcd6748`, describes an *identity* and is covered in "Nominal bindings" at the end of this
+subsection.
 
 `mapped structural …` describes the encoding and comes in four **shapes** — `record` (a product
 type, encoded as a JSON object), `enum` (nullary constructors, encoded as a JSON string), `union`
@@ -706,10 +741,13 @@ Seven facts a highlighter implementer needs:
   it does in a `: MaybeText` wire field; and the parentheses of a nested constructor are
   **uncolored punctuation**, as `Optional(Text)` already is. So the shape needed no new matching
   rule in either package.
-- **`structural`, `opaque`, `nominal`, `record`, `union`, and the field-level `optional` are
-  Modifiers** in Section 6, not control keywords: they qualify the declaration `mapped`
+- **`structural`, `opaque`, `nominal`, `refined`, `record`, `union`, and the field-level `optional`
+  are Modifiers** in Section 6, not control keywords: they qualify the declaration `mapped`
   introduces rather than introducing one themselves. (`nominal` is the third family word; see
-  "Nominal bindings" below.) `optional` is `required`'s partner in one parser `choice`,
+  "Nominal bindings" below. `refined` is the fourth, added by keiro-dsl commit `e548fffd`; see
+  "Refined byte policies" below. Both join `structural` and `opaque` for the same reason — upstream's
+  `pMappedTopItem` reads `keyword "mapped"` and then chooses between the four.) `optional` is
+  `required`'s partner in one parser `choice`,
   and `required` has been a Modifier since plan 4. The visible consequence of classifying by
   role rather than by position is that `mapped structural enum X` shows `enum` in the
   *introducer* color while `mapped structural record X` shows `record` in the *modifier* color
@@ -742,6 +780,57 @@ Seven facts a highlighter implementer needs:
   That is Section 1's lexical-highlighting rule working as designed, not a bug — `key`,
   `value`, `field`, `table`, `row`, and `group` have all been unconditional keywords since
   plan 4 and can all appear as ordinary names too.
+
+#### Refined byte policies
+
+Since keiro-dsl commit `e548fffd` a `.keiro` file can also declare a **checked byte refinement**:
+a consumer-owned type whose accepted values and canonical spelling are decided by *keiro* rather
+than by the declaration. The consumer still supplies the Haskell binding; what it does not supply
+is the encoding, because the encoding is a frozen wire contract keiro owns. This is the fourth
+`mapped` family and it takes one spelling:
+
+```text
+mapped refined ContentHash {
+  haskell package=keiro-dsl module=Conformance.RefinedBase16.Domain type=ContentHash
+  binding = "Conformance.RefinedBase16.Bindings.contentHashBinding"
+  binding-version = "1"
+  canonical-type = "conformance.refined-base16.ContentHash.v1"
+  fixtures = "Conformance.RefinedBase16.Bindings.contentHashFixtures"
+  initial = "Conformance.RefinedBase16.Bindings.initialContentHash"
+  wire base16-bytes
+}
+```
+
+Three facts a highlighter implementer needs:
+
+- **Only two words are new.** The braced block is `pRefinedClause`, a `choice` over rules the older
+  families already used — `pHaskellSource` (the `haskell package=… module=… type=…` line) and
+  `pQuotedFact` for `binding`, `binding-version`, `canonical-type`, `fixtures`, and `initial` —
+  plus one new alternative, `keyword "wire" *> keyword "base16-bytes"`. Every one of those six
+  clause labels is already in this section, and `wire` is reserved (Section 3) and has headed the
+  braced form since the declaration arrived. So the whole of refined byte policies costs exactly
+  `refined` and `base16-bytes`.
+- **`refined` is a Modifier and `base16-bytes` is a Control keyword** in Section 6. `refined` joins
+  `structural`, `opaque`, and `nominal` because it selects a `mapped` declaration's family.
+  `base16-bytes` is a fixed enumerated clause value read immediately after `wire`, which is exactly
+  the position and exactly the parser shape of `tagged-object` in
+  `wire tagged-object tag=… contents=…` — and `tagged-object` has been a Control keyword since the
+  declaration arrived. Being dashed, `base16-bytes` must be matched before bare words; being a
+  dashed word whose leading segment is not a keyword, it needs no `-\@!` partner (see the dashed
+  subsection above).
+- **The name after `refined` is a declaration-site type name**, the same optional refinement
+  Section 6 already gives `record X`, `union X`, `opaque X`, `nominal X`, and `value X`.
+
+`base16-bytes` is the only policy the grammar admits. Upstream's own test suite pins that by
+asserting that `wire base16-bytes length=32` and `wire custom Example.decodeHash` are both
+rejected, so neither `length` nor `custom` is a word of this language. A highlighter models none of
+that: it colours the one spelling that exists and would colour an invented second one as plain
+text, which is the correct rendering of a word that is not in the list.
+
+Refined-byte-policy syntax requires the source to declare `language keiro-dsl 6` or later. Neither
+package models that, for the reason Section 1 gives: highlighting is purely lexical, and a file
+naming an earlier version still tokenizes while its author fixes the
+`LanguageFeatureRequiresVersion` diagnostic.
 
 #### Nominal bindings
 
@@ -1159,11 +1248,11 @@ to. Both packages must classify the identical literal words into the keyword cla
 | Token class | Members / pattern | TextMate scope | Vim group |
 |---|---|---|---|
 | Declaration introducer | the subset of reserved + contextual words that begin a top-level item or node: `language` (the version preamble, which begins the only clause outside the spec body — see Section 4), `context`, `id`, `enum`, `rule`, `mapped`, `aggregate`, `process`, `router`, `contract`, `intake`, `emit`, `publisher`, `workqueue`, `dispatch`, `readmodel`, `workflow`, `operation`, and the four dashed projection-catalog declarations `rebuild-group`, `projection-revision`, `external-read`, `projection-owner` (Language 5; being dashed they must be matched before bare words — the bare `projection` heads two of them; see Section 4) | `keyword.declaration.keiro` | `Keyword` |
-| Control / section keyword | all other reserved keywords (Section 3) **and** all curated contextual keywords (Section 4) *except the words the Modifier and Language-constant rows below claim*, e.g. `regs`, `states`, `command`, `event`, `wire`, `guard`, `write`, `goto`, `snapshot`, `module`, `layout`, `resolve`, `dispatch-each`, `read-model`, `category`, `persist`, `patch`, `continueAsNew`, `columns`, `feed`, `scope`, `shape`, `on`, `advance`, `schedule`, `timer`, `bind`, `accept`, `map`, `step`, `await`, the version preamble's dialect name `keiro-dsl` (dashed — see Section 4), and the mapped-type vocabulary `haskell`, `package`, `type`, `binding`, `binding-version`, `canonical-type`, `codec`, `fixtures`, `initial`, `object`, `constructor`, `string`, `tagged-object`, `tag`, `contents`, `as`, `unknown-fields`, `reject`, `ignore`, `on-missing` (of which `haskell` and `as` are, since keiro-dsl `b31896cf`, also the field-alias markers on aggregate and contract fields — see Section 4), and the nominal-binding clause word `using` (which attaches a consumer binding block to an `id` or `enum` declaration — see Section 4), the transition clause word `implementation` (of `implementation hole`; its second word `hole` is a Language constant, one row down), the shape word `value` of a bare container mapping (`mapped structural value X`, keiro-dsl `a6110a94`) — which stays here, and does **not** join `record` and `union` in the Modifier row, because the same word is the older workflow-signal clause label `signal … value <Type>` and one word gets one class; see Section 4 — and the two scalar-expression roots `reg` and `cmd` — which, uniquely in this table, are matched **only when the next character is a `.`**, so `reg.balance` is a keyword and the wire word in `id CommandId prefix=cmd` is not (see Section 4), the Language 5 and 6 vocabulary of Section 4's last subsection except the words the Modifier, Primitive-type, and introducer rows claim — among them the projection-catalog labels (`reset`, `targets`, `order`, `promotion`, `delivery`, `replay`, `depends-on`, `schema-version`, `checkpoint-on-missing`, …), `freshness`, `backing`, `domain-outcomes`, `rejection`, the reaction words `reactions`, `when`, `otherwise`, `cancel`, `timers`, the declarative-selection labels `identity`, `with`, `where`, `recipient`, `empty`, `failure`, `redelivery`, `max-recipients`, and `idempotence`, plus their enumerated values (`clear`, `preserve`, `all`, `explicit`, `live-only`, `immediate`, `wait-for-head`, `fifo-heads`, `delegated`, `accepted`, `no-op`, `no-action`, `ack`, …), ... | `keyword.control.keiro` | `Statement` |
-| Modifier | `deprecated`, `retiring` (the two mutually exclusive event prefixes — see Section 3), `upcast`, `from`, `consistency`, `required`, `stable`, `strategy`, `via`, `policy`, `prefix`, `kind`, the mapped-type words `structural`, `opaque`, `nominal`, `record`, `union` (which select the family and shape of a `mapped` declaration — but **not** the fourth shape word `value`, which stays a Control keyword one row up for the reason given there) and `optional` (`required`'s partner on a wire field — see Section 4), the dashed `replay-only` (the transition prefix — see Section 4; being dashed it must be matched before bare words), and the Language 5/6 words `once` (qualifies a reaction `schedule`), `silent` (qualifies `no-action`), and `declarative` (selects a `resolve` form, like `stable`). `from` heads the dashed Control values `from-beginning` / `from-current-head`, so Vim matches it with a `-\@!` guard | `storage.modifier.keiro` | `StorageClass` |
+| Control / section keyword | all other reserved keywords (Section 3) **and** all curated contextual keywords (Section 4) *except the words the Modifier and Language-constant rows below claim*, e.g. `regs`, `states`, `command`, `event`, `wire`, `guard`, `write`, `goto`, `snapshot`, `module`, `layout`, `resolve`, `dispatch-each`, `read-model`, `category`, `persist`, `patch`, `continueAsNew`, `columns`, `feed`, `scope`, `shape`, `on`, `advance`, `schedule`, `timer`, `bind`, `accept`, `map`, `step`, `await`, the version preamble's dialect name `keiro-dsl` (dashed — see Section 4), and the mapped-type vocabulary `haskell`, `package`, `type`, `binding`, `binding-version`, `canonical-type`, `codec`, `fixtures`, `initial`, `object`, `constructor`, `string`, `tagged-object`, `base16-bytes` (the one wire policy of a `mapped refined` declaration — keiro-dsl `e548fffd`; it is read immediately after `wire`, exactly as `tagged-object` is, and being dashed it must be matched before bare words, though unlike most dashed words its leading segment `base16` is not itself a keyword, so it needs no `-\@!` partner — see Section 4), `tag`, `contents`, `as`, `unknown-fields`, `reject`, `ignore`, `on-missing` (of which `haskell` and `as` are, since keiro-dsl `b31896cf`, also the field-alias markers on aggregate and contract fields — see Section 4), and the nominal-binding clause word `using` (which attaches a consumer binding block to an `id` or `enum` declaration — see Section 4), the transition clause word `implementation` (of `implementation hole`; its second word `hole` is a Language constant, one row down), the shape word `value` of a bare container mapping (`mapped structural value X`, keiro-dsl `a6110a94`) — which stays here, and does **not** join `record` and `union` in the Modifier row, because the same word is the older workflow-signal clause label `signal … value <Type>` and one word gets one class; see Section 4 — and the two scalar-expression roots `reg` and `cmd` — which, uniquely in this table, are matched **only when the next character is a `.`**, so `reg.balance` is a keyword and the wire word in `id CommandId prefix=cmd` is not (see Section 4), the Language 5 and 6 vocabulary of Section 4's last subsection except the words the Modifier, Primitive-type, and introducer rows claim — among them the projection-catalog labels (`reset`, `targets`, `order`, `promotion`, `delivery`, `replay`, `depends-on`, `schema-version`, `checkpoint-on-missing`, …), `freshness`, `backing`, `domain-outcomes`, `rejection`, the reaction words `reactions`, `when`, `otherwise`, `cancel`, `timers`, the declarative-selection labels `identity`, `with`, `where`, `recipient`, `empty`, `failure`, `redelivery`, `max-recipients`, and `idempotence`, plus their enumerated values (`clear`, `preserve`, `all`, `explicit`, `live-only`, `immediate`, `wait-for-head`, `fifo-heads`, `delegated`, `accepted`, `no-op`, `no-action`, `ack`, …), ... | `keyword.control.keiro` | `Statement` |
+| Modifier | `deprecated`, `retiring` (the two mutually exclusive event prefixes — see Section 3), `upcast`, `from`, `consistency`, `required`, `stable`, `strategy`, `via`, `policy`, `prefix`, `kind`, the mapped-type words `structural`, `opaque`, `nominal`, `refined` (the fourth family, of a checked byte refinement `mapped refined X { … wire base16-bytes }` — keiro-dsl `e548fffd`; it selects a family exactly as the three beside it do and, unlike `value`, has no second role anywhere in the language), `record`, `union` (which select the family and shape of a `mapped` declaration — but **not** the fourth shape word `value`, which stays a Control keyword one row up for the reason given there) and `optional` (`required`'s partner on a wire field — see Section 4), the dashed `replay-only` (the transition prefix — see Section 4; being dashed it must be matched before bare words), and the Language 5/6 words `once` (qualifies a reaction `schedule`), `silent` (qualifies `no-action`), and `declarative` (selects a `resolve` form, like `stable`). `from` heads the dashed Control values `from-beginning` / `from-current-head`, so Vim matches it with a `-\@!` guard | `storage.modifier.keiro` | `StorageClass` |
 | Language constant | `true`, `false`, `null` (the `on-missing=null` sentinel — see Section 4), `HOLE`, `placeholder`, `skip`, `hole` (three parser sites: a contract emitter's `derive "…" hole`, a router's `resolve … hole`, and — since keiro-dsl `8b0f55b` — the second word of a transition's `implementation hole` clause, whose first word is a Control keyword one row up) | `constant.language.keiro` (give `true` / `false` the more specific `constant.language.boolean.keiro`; `null` takes the general scope) | `Boolean` for `true` / `false`, else `Constant` |
 | Primitive type | `Bool`, `Int`, `Integer` (a distinct spelling from `Int`, not an alias — keiro-dsl `8b0f55b`), `Text`, `Time`, `Id`, `Maybe`, `typeid`, `text`, `int`, `bool` (the third lowercase legacy workqueue payload type — keiro-dsl `9fb54d56` range), and the mapped-type spellings `Natural`, `UTCTime` (an alias for `Time`), `Day` (a calendar date with no time-of-day part and no time zone, distinct from `Time`, which is an instant — keiro-dsl `6b92bd52`; unlike `Time` it has no alias), `Set` (only ever written as the two-word `Set Text`, an unordered collection of text values with no duplicates, distinct from the ordered `List Text` — keiro-dsl `01ba6c58`; the parser admits no other element type after `Set`, but both packages match the word with an ordinary one-word rule, exactly as they match every other spelling in this row), `Json`, `Optional`, `List`, `Map` (see Section 4 — `Map` capitalized is a type, the reserved lowercase `map` is a control keyword, and both packages match case-sensitively). These are matched **unconditionally, everywhere**, not only inside a `mapped` declaration: since keiro-dsl `da09736` the same type grammar is also an aggregate register's and an aggregate command/event field's type slot (Section 4). **This row is the only place the type vocabulary is recorded.** No primitive spelling is in the parser's `reservedWords` and none is a contextual clause word, so none appears in Section 3 or Section 4 — and the mechanical word-count guards in both packages' test suites, which read only those two sections, cannot notice a type spelling arriving or going missing. Named assertions over the corpus are the only protection a type spelling has — and a new spelling can also **recolour text in corpus files the upstream range never touched**, because these rules match everywhere: `Set` (keiro-dsl `01ba6c58`) is the head of `Settle`, `Settled`, `SettleEntry`, `TicketSettled`, and `EntrySettled`, which have been in three corpus files since long before it arrived. Grep the whole corpus for a new spelling as a *substring* before adding it, and pin whatever that grep finds | `support.type.keiro` | `Type` |
-| Declaration-site type name | a CamelCase plain identifier appearing immediately after a declaration introducer that names a type (`enum X`, `aggregate X`, `contract X`, `command X`, `event X`, `id X`, `workflow X`, `operation X`, `process X`) or immediately after a `mapped` declaration's family or shape word (`record X`, `union X`, `opaque X`, `nominal X`, and — since keiro-dsl `a6110a94` — the bare-container shape `value X`; `mapped structural enum X` is already covered by the `enum X` case). Being lexical, `value X` also claims the type named by a workflow signal operation's trailing `value <Type>` clause, which is a use site rather than a declaration site but does name a type (see Section 4). Note the "CamelCase" requirement is load-bearing for `value X` and for that reason alone: `value` is a common wire field name, and a name slot accepting any identifier would claim the `as` of `value as "value" : Text required` | `entity.name.type.keiro` | `Type` |
+| Declaration-site type name | a CamelCase plain identifier appearing immediately after a declaration introducer that names a type (`enum X`, `aggregate X`, `contract X`, `command X`, `event X`, `id X`, `workflow X`, `operation X`, `process X`) or immediately after a `mapped` declaration's family or shape word (`record X`, `union X`, `opaque X`, `nominal X`, since keiro-dsl `a6110a94` the bare-container shape `value X`, and since keiro-dsl `e548fffd` the refined-byte-policy family `refined X`; `mapped structural enum X` is already covered by the `enum X` case). Being lexical, `value X` also claims the type named by a workflow signal operation's trailing `value <Type>` clause, which is a use site rather than a declaration site but does name a type (see Section 4). Note the "CamelCase" requirement is load-bearing for `value X` and for that reason alone: `value` is a common wire field name, and a name slot accepting any identifier would claim the `as` of `value as "value" : Text required` | `entity.name.type.keiro` | `Type` |
 | String | `"..."` (Section 2) | `string.quoted.double.keiro` | `String` |
 | String escape | one of `\"`, `\\`, `\n`, `\t`, `\r` inside a string (Section 2) | `constant.character.escape.keiro` | `SpecialChar` |
 | Number | integer, `[0-9]+\.[0-9]+` fractional, `v[0-9]+`, and `[0-9]+[smh]` duration (Section 2) | `constant.numeric.keiro` | `Number` |
