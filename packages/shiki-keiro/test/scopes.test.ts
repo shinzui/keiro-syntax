@@ -220,6 +220,14 @@ const languageSix = readFileSync(
   resolve(repoRoot, 'corpus/language-version-6-reactions-and-selection.keiro'),
   'utf8',
 )
+const bareContainers = readFileSync(
+  resolve(repoRoot, 'corpus/consumer-mapped-bare-containers.keiro'),
+  'utf8',
+)
+const workflowSignal = readFileSync(
+  resolve(repoRoot, 'corpus/workflow-signal-mismatch.keiro'),
+  'utf8',
+)
 
 test('comments get the comment scope', () => {
   expectScope(sampler, '# keiro-dsl lexical sampler — comments, strings, numbers, durations, versions', 'comment.line.number-sign.keiro')
@@ -1063,6 +1071,106 @@ test('the remaining Language 6 spellings tokenize', () => {
   expectWholeToken(languageSix, 'fifo-heads', 'keyword.control.keiro')
   // The keyed map: `Map` is still a type and the brackets stay plain.
   expectWholeToken(languageSix, 'Map', 'support.type.keiro', 'Map[TemplateId]')
+})
+
+// --- Bare container mappings (keiro-dsl a6110a94) ---------------------------
+//
+// `mapped structural value X { ... wire <Type> }` is a fourth structural shape: the declared
+// Haskell type *is* a container, so its encoding is one unbraced `wire <Type>` line instead of a
+// braced `wire ... { ... }` block. It adds no word — `value` has been in Section 4's bare grid
+// since plan 4 and `wire` is reserved — so these assertions mostly pin that the existing rules
+// already cover it. The one real change is #bare-mapped-decl-with-name, which teaches the
+// Declaration-site-type-name refinement its fifth position.
+
+test('the bare container shape word keeps keyword.control', () => {
+  // `value` does NOT join `record` and `union` in the Modifier class: the same word is the older
+  // workflow-signal clause label, and one word gets one class. See Section 6 of
+  // spec/keiro-dsl-language-model.md.
+  expectWholeToken(
+    bareContainers,
+    'value',
+    'keyword.control.keiro',
+    'mapped structural value MaybeText',
+  )
+  // Its neighbours are undisturbed.
+  expectWholeToken(bareContainers, 'mapped', 'keyword.declaration.keiro')
+  expectWholeToken(
+    bareContainers,
+    'structural',
+    'storage.modifier.keiro',
+    'mapped structural value MaybeText',
+  )
+})
+
+test('the name a bare container mapping declares gets entity.name.type', () => {
+  // Proves #bare-mapped-decl-with-name won the same-position tie against #control-keywords: the
+  // shape word keeps its control scope (asserted above) *and* the name is claimed.
+  expectScope(bareContainers, 'MaybeText', 'entity.name.type.keiro')
+  expectScope(bareContainers, 'TextList', 'entity.name.type.keiro')
+  expectScope(bareContainers, 'TextMap', 'entity.name.type.keiro')
+  expectScope(bareContainers, 'NestedIds', 'entity.name.type.keiro')
+})
+
+test('the bare wire line tokenizes with no new rule', () => {
+  // `wire` is reserved and has headed the braced form since the declaration arrived; the type
+  // slot is the unchanged `pMappedTypeExpr`, whose literal spellings are already in #types.
+  expectWholeToken(bareContainers, 'wire', 'keyword.control.keiro', 'wire Optional Text')
+  expectWholeToken(bareContainers, 'Optional', 'support.type.keiro', 'wire Optional Text')
+  expectWholeToken(bareContainers, 'List', 'support.type.keiro', 'wire List Text')
+  expectWholeToken(bareContainers, 'Map', 'support.type.keiro', 'wire Map Text')
+  // The nested, parenthesised form: both constructors are types, and the parentheses plus the
+  // reference to another declared type stay plain — exactly as `Optional(Text)` already does.
+  expectWholeToken(bareContainers, 'Optional', 'support.type.keiro', 'wire List (Optional ItemId)')
+  const lines = hl.codeToTokensBase(bareContainers, {
+    lang: 'keiro',
+    theme: 'github-light',
+    includeExplanation: true,
+  })
+  const nested = lines
+    .map((l) => l.flatMap((t) => t.explanation ?? []))
+    .find((parts) => parts.map((p) => p.content).join('').includes('wire List (Optional ItemId)'))
+  expect(nested, 'corpus is missing the nested bare wire line').toBeDefined()
+  const reference = nested!.find((p) => p.content.includes('ItemId'))
+  expect(reference, 'ItemId should be part of a plain token').toBeDefined()
+  expect(
+    reference!.scopes.map((s) => s.scopeName).filter((s) => KEYWORDISH_SCOPES.has(s)),
+  ).toEqual([])
+})
+
+test('a bare container mapping leaves the rest of the file tokenizing normally', () => {
+  // The clause labels inside the block are the ones the older mapped families already use.
+  expectScope(bareContainers, 'haskell', 'keyword.control.keiro')
+  expectWholeToken(bareContainers, 'binding-version', 'keyword.control.keiro')
+  expectWholeToken(bareContainers, 'canonical-type', 'keyword.control.keiro')
+  // The nodes beneath the declarations.
+  expectScope(bareContainers, 'aggregate', 'keyword.declaration.keiro')
+  expectScope(bareContainers, 'workqueue', 'keyword.declaration.keiro')
+  expectWholeToken(bareContainers, 'rebuild-group', 'keyword.declaration.keiro')
+  expectWholeToken(bareContainers, 'projection-owner', 'keyword.declaration.keiro')
+  expectScope(bareContainers, 'readmodel', 'keyword.declaration.keiro')
+  // The corpus's only type expression in a `query result =` slot.
+  expectWholeToken(bareContainers, 'List', 'support.type.keiro', 'query result = List TextList')
+})
+
+test('the workflow signal value clause is undisturbed', () => {
+  // The non-regression that matters: `value` keeps its control scope at its older site, which is
+  // why it was not promoted to a Modifier. The type it names does gain the type-name scope,
+  // because the refinement is purely lexical — and that is accurate, since upstream's
+  // Validate.hs binds this slot as `valueType`.
+  expectWholeToken(
+    workflowSignal,
+    'value',
+    'keyword.control.keiro',
+    'value ReservationConfirmation',
+  )
+  // Anchored: the same spelling appears earlier in the file as the target of an `await ... ->`
+  // arrow, where it is plain and must stay plain.
+  expectWholeToken(
+    workflowSignal,
+    'ReservationConfirmation',
+    'entity.name.type.keiro',
+    'value ReservationConfirmation',
+  )
 })
 
 // --- Spec word-list coverage guards -----------------------------------------

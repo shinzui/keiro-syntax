@@ -706,6 +706,56 @@ expect_uniform('fifo-heads', 'keiroStatement')
 expect('aggregate IncidentSaga', 'keiroKeyword')
 expect('# keiro-dsl Language 6 sample', 'keiroComment')
 
+-- Bare container mappings (keiro-dsl a6110a94). `mapped structural value X { ... wire <Type> }`
+-- is a fourth structural shape: the declared Haskell type *is* a container, so its encoding is
+-- one unbraced `wire <Type>` line instead of a braced `wire ... { ... }` block. It adds no word
+-- — `value` has been in Section 4's bare grid since plan 4 and `wire` is reserved — so keiro.vim
+-- needed no matching rule and these assertions exist to keep it that way.
+open('corpus/consumer-mapped-bare-containers.keiro')
+expect('mapped structural value', 'keiroKeyword')
+expect('structural value', 'keiroModifier')
+-- `value` does NOT join `record` / `union` in the Modifier class: one word gets one class, and
+-- the same word is the older workflow-signal clause label `signal ... value <Type>`. See
+-- Section 6 of spec/keiro-dsl-language-model.md.
+expect_uniform('value', 'keiroStatement', 'mapped structural value MaybeText')
+-- `keiroTypeName` is deliberately not asserted for `MaybeText`, for the same reason it is not
+-- asserted for `ArtifactInfo` or `AccountNumber` above: the Vim rule for the optional
+-- Declaration-site-type-name refinement has never fired for any introducer, because Vim's
+-- 'syntax keyword' outranks the '\zs' match and consumes the leading word before the match is
+-- tried. Section 6 marks that class optional, so Vim stays compliant; `value` was still added to
+-- the rule so it matches Section 6 when a future plan makes it fire.
+--
+-- The bare wire line. `wire` is reserved, and the type slot is the unchanged `pMappedTypeExpr`,
+-- whose literal spellings keiro.vim already matches unconditionally.
+expect('wire Optional Text', 'keiroStatement')
+expect('Optional Text', 'keiroType')
+expect('List Text', 'keiroType')
+expect('Map Text', 'keiroType')
+-- The nested, parenthesised form. `List` and `Optional` are types; the '(' and the reference to
+-- another declared type stay plain, exactly as `Optional(Text)` already does.
+expect('List (Optional ItemId)', 'keiroType')
+expect_uniform('Optional', 'keiroType', 'wire List (Optional ItemId)')
+expect_no_group('(Optional ItemId)', 0)
+expect_no_group('(Optional ItemId)', 10)
+-- The clause labels inside the block are the ones the older mapped families already use.
+expect('haskell package', 'keiroStatement')
+expect('binding-version', 'keiroStatement')
+expect('canonical-type', 'keiroStatement')
+-- The nodes beneath the declarations must be undisturbed.
+expect('aggregate BareStore', 'keiroKeyword')
+expect('workqueue bare_jobs', 'keiroKeyword')
+expect_uniform('rebuild-group', 'keiroKeyword')
+expect_uniform('projection-owner', 'keiroKeyword')
+expect('readmodel bare_lookup', 'keiroKeyword')
+-- The corpus's only type expression in a `query result =` slot.
+expect_uniform('List', 'keiroType', 'query result = List TextList')
+
+-- The non-regression that matters for the decision above: at `value`'s older site the word keeps
+-- the Statement class it has everywhere. This is the first assertion either suite makes over
+-- this file's signal operation.
+open('corpus/workflow-signal-mismatch.keiro')
+expect_uniform('value', 'keiroStatement', 'value ReservationConfirmation')
+
 -- The regression guard for the whole follow-'.' decision on the two roots. `cmd` is a
 -- user-chosen wire word in five corpus files (`id CommandId prefix=cmd`), and an unconditional
 -- rule would recolour every one of them. Asserted against the oldest corpus file, so a future

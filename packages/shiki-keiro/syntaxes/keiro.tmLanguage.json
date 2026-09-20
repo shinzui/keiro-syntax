@@ -10,6 +10,7 @@
     { "include": "#dashed-modifiers" },
     { "include": "#decl-with-name" },
     { "include": "#mapped-decl-with-name" },
+    { "include": "#bare-mapped-decl-with-name" },
     { "include": "#introducers" },
     { "include": "#modifiers" },
     { "include": "#constants" },
@@ -58,6 +59,14 @@
       "match": "(?<![A-Za-z0-9_-])(record|union|opaque|nominal)(?![A-Za-z0-9_-])\\s+([A-Za-z_][A-Za-z0-9_]*)",
       "captures": {
         "1": { "name": "storage.modifier.keiro" },
+        "2": { "name": "entity.name.type.keiro" }
+      }
+    },
+    "bare-mapped-decl-with-name": {
+      "comment": "The fourth `mapped structural` shape word plus the type name it declares (`mapped structural value MaybeText`, keiro-dsl a6110a94). It needs its own rule rather than an alternative in #mapped-decl-with-name because that rule's first capture is `storage.modifier.keiro`, and `value` is a Control keyword: the same word is the older workflow-signal clause label `signal ... value <Type>`, and one word gets one class (Section 6 of spec/keiro-dsl-language-model.md). Listed before #control-keywords, which would otherwise claim `value` alone and end the scan before the name. The name slot requires an uppercase initial — narrower than the two rules above, and deliberately so: `value` is a common wire field name, and `[A-Za-z_]...` here would claim the `as` of `value as \"value\" : Text required`.",
+      "match": "(?<![A-Za-z0-9_-])(value)(?![A-Za-z0-9_-])\\s+([A-Z][A-Za-z0-9_]*)",
+      "captures": {
+        "1": { "name": "keyword.control.keiro" },
         "2": { "name": "entity.name.type.keiro" }
       }
     },

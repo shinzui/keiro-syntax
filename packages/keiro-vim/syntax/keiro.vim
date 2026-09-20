@@ -209,6 +209,11 @@ syntax match keiroOperator /[<>@!+*]/
 " --- Declaration-site type name (optional refinement) ---------------------
 " `record` / `union` / `opaque` / `nominal` are a mapped declaration's shape and family words,
 " listed here so this rule stays in step with Section 6 of spec/keiro-dsl-language-model.md.
+" `value` is the fourth shape word (`mapped structural value MaybeText`, keiro-dsl a6110a94). It
+" is listed here for the same Section 6 parity even though, unlike the four beside it, it is a
+" keiroStatement rather than a keiroModifier: one word gets one class, and `value` is also the
+" older workflow-signal clause label `signal ... value <Type>`. The '\u' is load-bearing for it
+" — a lowercase-admitting name slot would claim the `as` of `value as "value" : Text required`.
 "
 " NOTE: this rule is currently inert, and has been since it was written. Vim tries syntax
 " items only at the current scan column, and 'syntax keyword' outranks 'syntax match' at the
@@ -219,7 +224,7 @@ syntax match keiroOperator /[<>@!+*]/
 " is compliant; the Shiki package does implement it. Making it work in Vim means restructuring
 " the introducer declarations to carry 'nextgroup=keiroTypeName skipwhite' with a 'contained'
 " keiroTypeName, which is a change to every introducer line and is left to a future plan.
-syntax match keiroTypeName /\<\%(aggregate\|enum\|contract\|command\|event\|workflow\|operation\|process\|id\|rule\|record\|union\|opaque\|nominal\)\s\+\zs\u\w*/
+syntax match keiroTypeName /\<\%(aggregate\|enum\|contract\|command\|event\|workflow\|operation\|process\|id\|rule\|record\|union\|opaque\|nominal\|value\)\s\+\zs\u\w*/
 
 " --- Highlight links ------------------------------------------------------
 highlight default link keiroComment      Comment

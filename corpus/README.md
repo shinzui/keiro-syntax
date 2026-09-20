@@ -101,6 +101,27 @@ Copied later, as the parser's lexical surface grew:
   Its version-2 twin, `keiro-dsl/test/fixtures/language-identifier-v2.keiro`, is deliberately
   not copied: the two differ only by a `language keiro-dsl 2` preamble line, and the corpus
   already has two preamble samples.
+- `consumer-mapped-bare-containers.keiro` — copied on 2026-09-19 at keiro-dsl commit
+  `a6110a94e66dab3cbe4b8b8eb0fbac70652f8ccb`, from that commit's
+  `keiro-dsl/test/fixtures/bare-containers.keiro`. It is the corpus's sample of the **bare
+  container mapping**, the fourth shape of a `mapped structural` declaration: instead of a braced
+  `wire … { … }` block it writes its encoding as one unbraced `wire <Type>` line, because the
+  declared Haskell type *is* a container. The file carries all four forms that line takes —
+  `wire Optional Text`, `wire List Text`, `wire Map Text`, and the nested, parenthesised
+  `wire List (Optional ItemId)` — plus a `mapped structural record` that consumes the four bare
+  types as wire fields with their `on-missing=null` / `[]` / `{}` defaults. Beneath the
+  declarations it consumes them again in an `aggregate`, a `workqueue`, a `target` /
+  `rebuild-group` / `projection-owner` projection catalog, and a `readmodel` whose
+  `query result = List TextList` is the corpus's only type expression in that slot, so both suites
+  can check that the new shape leaves the rest of the file tokenizing normally. It is upstream's
+  authoritative fixture for the feature — `keiro-dsl/test/Main.hs` parses it with
+  `checkedServiceFromText`, round-trips it through the pretty-printer, scaffolds from it, and
+  asserts that the same text under a `language keiro-dsl 5` preamble is refused — so a verbatim
+  copy proves both packages tokenize text that really is valid keiro-dsl. The shape needed no new
+  matching rule in either package (`value` and `wire` were both already keywords); what it needed
+  was the **Declaration-site type name** refinement, which now recognizes `value X` as it already
+  recognized `record X`. It backs the reconciliation recorded in
+  `docs/plans/18-record-the-keiro-dsl-bare-container-mapping-shape-mapped-structural-value-and-cover-it-in-the-corpus.md`.
 
 The remaining files are **hand-written for this repository**:
 
