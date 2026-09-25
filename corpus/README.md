@@ -1,10 +1,17 @@
 # keiro-dsl shared test corpus
 
-The `.keiro` files in this directory are the **shared test corpus** consumed by both
-highlighting packages in this repository (`packages/keiro-vim/` and
-`packages/shiki-keiro/`). Each package loads these files in its automated tests and asserts
-that specific tokens receive specific classifications, per the taxonomy in
-`spec/keiro-dsl-language-model.md`.
+The `.keiro` and `.keiro-workspace` files in this directory are the **shared test
+corpus** consumed by both highlighting packages in this repository
+(`packages/keiro-vim/` and `packages/shiki-keiro/`). Each package loads these
+files in its automated tests and asserts token classifications according to
+`spec/keiro-dsl-language-model.md` and `spec/keiro-workspace-language-model.md`.
+
+The workspace corpus contains `service.keiro-workspace`, copied verbatim from
+`mori://shinzui/keiro/packages/keiro-dsl`
+(`keiro-dsl/test/conformance-service-package/service.keiro-workspace`) on
+2026-09-24, and the hand-written `prefixed.keiro-workspace`. Together they cover
+all five manifest clause words and both layout values. Their classification
+follows `spec/keiro-workspace-language-model.md`.
 
 ## Provenance
 

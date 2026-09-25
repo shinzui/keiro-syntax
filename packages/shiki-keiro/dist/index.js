@@ -6,13 +6,17 @@ var keiro_tmLanguage_default = {
   patterns: [
     { include: "#comments" },
     { include: "#strings" },
+    { include: "#dashed-introducers" },
     { include: "#dashed-keywords" },
     { include: "#dashed-modifiers" },
     { include: "#decl-with-name" },
+    { include: "#mapped-decl-with-name" },
+    { include: "#bare-mapped-decl-with-name" },
     { include: "#introducers" },
     { include: "#modifiers" },
     { include: "#constants" },
     { include: "#types" },
+    { include: "#scalar-roots" },
     { include: "#control-keywords" },
     { include: "#numbers" },
     { include: "#operators" }
@@ -31,8 +35,14 @@ var keiro_tmLanguage_default = {
       ]
     },
     "dashed-keywords": {
-      match: "(?<![A-Za-z0-9_-])(?:status-map|dispatch-id|fired-event-id|dispatch-each|read-model|on-appended|on-duplicate|on-failed|on-ok|on-reject|on-error|on-ambiguous|on-terminal|not-mine|unknown-status|max-attempts|dead-letter|kafka-key|kafka-cursor|cross-check|state-codec|shape-hash|full-envelope|dedupe-only|entire-log|fifo-throughput|fifo-roundrobin)(?![A-Za-z0-9_-])",
+      comment: "`keiro-dsl` is the dialect name in the `language keiro-dsl 1` version preamble, and `base16-bytes` (keiro-dsl e548fffd) is the one wire policy a `mapped refined` declaration may name \u2014 read immediately after `wire`, exactly as `tagged-object` is. Those two are the entries here whose leading segment is not itself a keyword, so they need no ordering care beyond being in this rule at all \u2014 without it the spelling falls through as plain text. `base16-bytes` is also the first keyword in the language to contain a digit; it is safe from #numbers both because this rule is listed earlier and because every numeric alternative there requires a `\\b` before the digits, which `base16` does not offer. `typeid-v5-or-v7` and `typeid-v7` (keiro-dsl 6b89cb51) are the two values of an `id` declaration's `domain=` clause. They are the first entries here that depend on this rule being listed earlier for BOTH of their collisions: their leading segment `typeid` is a primitive type matched by #types, and \u2014 unlike `base16` \u2014 their digits DO offer a `\\b`, because the `v` in front of them follows a `-`, so #numbers' `\\bv[0-9]+\\b` alternative really would match the `v5` and the `v7`. Nothing but rule order keeps either spelling whole.",
+      match: "(?<![A-Za-z0-9_-])(?:status-map|dispatch-id|fired-event-id|dispatch-each|read-model|keiro-dsl|base16-bytes|typeid-v5-or-v7|typeid-v7|on-appended|on-duplicate|on-failed|on-ok|on-reject|on-error|on-ambiguous|on-blocked|on-terminal|on-missing|not-mine|unknown-status|unknown-fields|max-attempts|dead-letter|kafka-key|kafka-cursor|cross-check|state-codec|shape-hash|full-envelope|dedupe-only|entire-log|fifo-throughput|fifo-roundrobin|binding-version|canonical-type|tagged-object|depends-on|schema-version|provisioner-version|expected-shape|validator-version|owned-sequence|result-schema|result-type|compatible-revisions|surface-generation|checkpoint-on-missing|from-beginning|from-current-head|live-only|wait-for-head|fifo-heads|domain-outcomes|no-op|no-action|max-recipients)(?![A-Za-z0-9_-])",
       name: "keyword.control.keiro"
+    },
+    "dashed-introducers": {
+      comment: "The four dashed Language-5 projection-catalog declarations (keiro-dsl d7be0fe6..9fb54d56, Parser/ProjectionCatalog.hs). They begin top-level items, so they are introducers. Listed before #control-keywords so the dashed spelling wins the same-position tie against the bare `projection`. The fifth catalog declaration, `target`, keeps its control scope: a lexical grammar cannot tell it from the clause word.",
+      match: "(?<![A-Za-z0-9_-])(?:rebuild-group|projection-revision|external-read|projection-owner)(?![A-Za-z0-9_-])",
+      name: "keyword.declaration.keiro"
     },
     "dashed-modifiers": {
       match: "(?<![A-Za-z0-9_-])(?:replay-only)(?![A-Za-z0-9_-])",
@@ -45,12 +55,30 @@ var keiro_tmLanguage_default = {
         "2": { name: "entity.name.type.keiro" }
       }
     },
+    "mapped-decl-with-name": {
+      comment: "The family or shape word of a `mapped` declaration plus the type name it names. Listed before #modifiers so it wins the same-position tie and can claim both tokens; its first capture keeps the Modifier scope those five words carry on their own. `nominal` is the third family (`mapped nominal X : Text { ... }`), added by keiro-dsl fcd6748; `refined` is the fourth (`mapped refined X { ... wire base16-bytes }`), added by keiro-dsl e548fffd. Adding `refined` to #modifiers alone would leave the name after it plain, because that rule ends its match at the word and no rule below claims a bare identifier.",
+      match: "(?<![A-Za-z0-9_-])(record|union|opaque|nominal|refined)(?![A-Za-z0-9_-])\\s+([A-Za-z_][A-Za-z0-9_]*)",
+      captures: {
+        "1": { name: "storage.modifier.keiro" },
+        "2": { name: "entity.name.type.keiro" }
+      }
+    },
+    "bare-mapped-decl-with-name": {
+      comment: 'The fourth `mapped structural` shape word plus the type name it declares (`mapped structural value MaybeText`, keiro-dsl a6110a94). It needs its own rule rather than an alternative in #mapped-decl-with-name because that rule\'s first capture is `storage.modifier.keiro`, and `value` is a Control keyword: the same word is the older workflow-signal clause label `signal ... value <Type>`, and one word gets one class (Section 6 of spec/keiro-dsl-language-model.md). Listed before #control-keywords, which would otherwise claim `value` alone and end the scan before the name. The name slot requires an uppercase initial \u2014 narrower than the two rules above, and deliberately so: `value` is a common wire field name, and `[A-Za-z_]...` here would claim the `as` of `value as "value" : Text required`.',
+      match: "(?<![A-Za-z0-9_-])(value)(?![A-Za-z0-9_-])\\s+([A-Z][A-Za-z0-9_]*)",
+      captures: {
+        "1": { name: "keyword.control.keiro" },
+        "2": { name: "entity.name.type.keiro" }
+      }
+    },
     introducers: {
-      match: "(?<![A-Za-z0-9_])(?:context|id|enum|rule|aggregate|process|router|contract|intake|emit|publisher|workqueue|dispatch|readmodel|workflow|operation)(?![A-Za-z0-9_])",
+      comment: "`language` opens the optional version preamble (`language keiro-dsl 1`), the only clause above `context`. Matched unconditionally: the parser's first-significant-line placement rule is not something a lexical grammar models.",
+      match: "(?<![A-Za-z0-9_])(?:language|context|id|enum|rule|mapped|aggregate|process|router|contract|intake|emit|publisher|workqueue|dispatch|readmodel|workflow|operation)(?![A-Za-z0-9_])",
       name: "keyword.declaration.keiro"
     },
     modifiers: {
-      match: "(?<![A-Za-z0-9_])(?:deprecated|retiring|upcast|from|consistency|required|stable|strategy|via|policy|prefix|kind)(?![A-Za-z0-9_])",
+      comment: '`domain` (keiro-dsl 6b89cb51) is the clause label of an `id` declaration\'s explicit admission domain, `id LegacyId prefix=legacy domain=typeid-v5-or-v7`. It belongs here rather than with the control keywords because it is written beside `prefix` in the same `label=value` shape and qualifies the declaration `id` introduces; one colour for the whole line is the point. It heads the older dashed Control value `domain-outcomes`, so #dashed-keywords must stay listed before this rule \u2014 the trailing guard below excludes identifier characters but not `-`, exactly as it fails to for `from` / `from-beginning`. `nominal` and `refined` join `structural` and `opaque` as `mapped` family words: `pMappedTopItem` upstream reads `keyword "mapped"` and then chooses between the four, so all four qualify the declaration `mapped` introduces rather than introducing one. `refined` (keiro-dsl e548fffd) selects the checked-byte-refinement family and, unlike the shape word `value`, has no second role anywhere in the language, so nothing competes for its class. Matched unconditionally, which means the `refined` segment of a dashed wire word such as `context refined-base16` is claimed too \u2014 the trailing guard excludes identifier characters but not `-`. That is the long-standing behaviour every family word already has (`structural` inside `context structural-text-sets`) and it keeps this package in step with the Vim one, where `-` is likewise not a keyword character.',
+      match: "(?<![A-Za-z0-9_])(?:deprecated|retiring|upcast|from|consistency|required|optional|stable|strategy|via|policy|prefix|kind|domain|structural|opaque|nominal|refined|record|union|once|silent|declarative)(?![A-Za-z0-9_])",
       name: "storage.modifier.keiro"
     },
     constants: {
@@ -60,20 +88,28 @@ var keiro_tmLanguage_default = {
           name: "constant.language.boolean.keiro"
         },
         {
-          match: "(?<![A-Za-z0-9_])(?:HOLE|placeholder|skip|hole)(?![A-Za-z0-9_])",
+          match: "(?<![A-Za-z0-9_])(?:HOLE|placeholder|skip|hole|null)(?![A-Za-z0-9_])",
           name: "constant.language.keiro"
         }
       ]
     },
     types: {
-      match: "(?<![A-Za-z0-9_])(?:Bool|Int|Text|Time|Id|Maybe|typeid|text|int)(?![A-Za-z0-9_])",
+      comment: "`Map` (capitalized) is a primitive type; the reserved lowercase `map` is a control keyword. Oniguruma is case-sensitive, and #types is listed before #control-keywords. `Integer` (keiro-dsl 8b0f55b) is a distinct spelling from `Int`, not an alias \u2014 upstream uses `Int` for machine integers and `Integer` for exact arbitrary-precision ones. It is listed before `Int` for readability only: the trailing `(?![A-Za-z0-9_])` already stops `Int` from claiming the head of `Integer`. `Day` (keiro-dsl 6b92bd52) is a calendar date with no time-of-day part and no time zone, a different type from `Time` and, unlike `Time`, with no alias; the surrounding `(?<![A-Za-z0-9_])` / `(?![A-Za-z0-9_])` guards are load-bearing for it, because upstream's own fixture declares `LocalDay`, `MaybeLocalDay`, and a field named `optionalDay`, none of which may be claimed. `Set` (keiro-dsl 01ba6c58) is the first half of the language's only two-word type spelling, `Set Text` \u2014 an unordered collection of text values with no duplicates, unlike the ordered `List Text`; the parser admits no other element type after `Set`, but one alternative here colours the phrase correctly wherever it is legal, and its position in the alternation is free because `Set` is neither a prefix nor a suffix of any other alternative. The trailing `(?![A-Za-z0-9_])` is load-bearing for it in a way it was not for `Day`: `Set` is the *head* of `Settle`, `Settled`, `SettleEntry`, `TicketSettled`, and `EntrySettled`, which live in three corpus files this word never came near. Since keiro-dsl 6b89cb51 the lowercase `typeid` is the leading segment of the dashed Control values `typeid-v5-or-v7` and `typeid-v7`, which makes this the only rule in the grammar whose position relative to #dashed-keywords matters for a *type* spelling: the trailing guard excludes identifier characters but not `-`, so `typeid` alone would claim the head of both. #dashed-keywords is listed earlier and wins; its bare uses, as in `incidentId: typeid \"inc\"`, are unaffected and stay in this class.",
+      match: "(?<![A-Za-z0-9_])(?:Bool|Integer|Int|Text|Time|UTCTime|Day|Set|Id|Maybe|Natural|Json|Optional|List|Map|typeid|text|int|bool)(?![A-Za-z0-9_])",
       name: "support.type.keiro"
     },
+    "scalar-roots": {
+      comment: "The two roots of a version-2 scalar expression: `reg.balance` reads a register, `cmd.balance` reads a field of the command being handled. Same class as the older dotted roots `input.` and `timer.`, but matched ONLY when a `.` follows. Upstream's `pScalarPath` gives these words meaning only as the head of a dotted path, and `cmd` is already a wire word in five corpus files (`id CommandId prefix=cmd`) that an unconditional rule would recolour. See Section 4 of spec/keiro-dsl-language-model.md.",
+      match: "(?<![A-Za-z0-9_])(?:reg|cmd)(?=\\.)",
+      name: "keyword.control.keiro"
+    },
     "control-keywords": {
-      match: "(?<![A-Za-z0-9_])(?:regs|states|command|event|wire|projection|snapshot|category|guard|write|emit|goto|fields|module|layout|prefixed|collocated|resolve|persist|patch|continueAsNew|columns|feed|scope|shape|accept|bind|dedupe|decode|disposition|map|queue|payload|retry|fanout|dedup|enqueue|seenIn|body|step|await|sleep|child|topic|ex|name|input|output|in|out|correlate|saga|stream|target|projections|on|advance|schedule|timer|fireAt|fire|source|key|value|run|signal|query|project|result|ordering|backoff|outboxId|messageId|idempotencyKey|discriminator|schemaVersion|derive|of|after|logical|physical|dlq|table|maxRetries|maxAttempts|delay|readModel|field|to|envelope|every|partial|header|schema|version|inline|row|halt|poison|rejected|group|provision|outcome|fixture|interval|retention|standard|unlogged|partitioned|unordered|off|strict|lenient)(?![A-Za-z0-9_])",
+      comment: "`using` introduces the consumer binding block on an `id` or `enum` declaration (`id OrderId prefix=ord using { ... }`). It opens a clause of a declaration another word already began \u2014 like `wire` inside a `mapped structural` block \u2014 so it belongs here rather than with the modifiers. `implementation` opens the transition clause `implementation hole` (keiro-dsl 8b0f55b), a peer of `guard`, `write`, `emit`, and `goto`; its second word `hole` is in #constants and stays there.",
+      match: "(?<![A-Za-z0-9_])(?:implementation|using|regs|states|command|event|wire|projection|snapshot|category|guard|write|emit|goto|fields|module|layout|prefixed|collocated|resolve|persist|patch|continueAsNew|columns|feed|scope|shape|accept|bind|dedupe|decode|disposition|map|queue|payload|retry|fanout|dedup|enqueue|seenIn|body|step|await|sleep|child|topic|ex|name|input|output|in|out|correlate|saga|stream|target|projections|on|advance|schedule|timer|fireAt|fire|source|key|value|run|signal|query|project|result|ordering|backoff|outboxId|messageId|idempotencyKey|discriminator|schemaVersion|derive|of|after|logical|physical|dlq|table|maxRetries|maxAttempts|delay|readModel|field|to|envelope|every|partial|header|schema|version|inline|row|halt|poison|rejected|group|provision|outcome|fixture|interval|retention|standard|unlogged|partitioned|unordered|off|strict|lenient|haskell|package|type|binding|codec|fixtures|initial|object|constructor|string|tag|contents|as|reject|ignore|reset|clear|preserve|targets|order|provisioner|validator|promotion|index|constraint|all|delivery|subscription|replay|explicit|fail|freshness|immediate|backing|accepted|rejection|reactions|when|otherwise|cancel|timers|identity|with|where|recipient|empty|failure|redelivery|ack|idempotence|delegated)(?![A-Za-z0-9_])",
       name: "keyword.control.keiro"
     },
     numbers: {
+      comment: "Longest form first: TextMate takes the first listed alternative that matches at a position, so `\\b[0-9]+\\.[0-9]+\\b` must precede `\\b[0-9]+\\b` or `1.5` tokenizes as `1` `.` `5`. This is the opposite of the order packages/keiro-vim/syntax/keiro.vim needs, where Vim's tie-break favours the item defined last \u2014 do not sync the two orderings.",
       patterns: [
         { match: "\\bv[0-9]+\\b", name: "constant.numeric.keiro" },
         { match: "\\b[0-9]+[a-zA-Z]+\\b", name: "constant.numeric.keiro" },
@@ -82,8 +118,65 @@ var keiro_tmLanguage_default = {
       ]
     },
     operators: {
-      match: "-->|--|->|:=|=>|==|!=|<=|>=|<>|&&|\\|\\||[<>@!+;=]",
+      comment: "`*` multiplies two operands of a version-2 scalar expression (`write x := reg.x * 2`). The matching subtraction operator is a bare `-`, deliberately absent: Section 5 of spec/keiro-dsl-language-model.md lists `-->`, `--`, and `->` but no bare `-`, and a rule for one would colour the dash inside every wire word.",
+      match: "-->|--|->|:=|=>|==|!=|<=|>=|<>|&&|\\|\\||[<>@!+*;=]",
       name: "keyword.operator.keiro"
+    }
+  }
+};
+
+// syntaxes/keiro-workspace.tmLanguage.json
+var keiro_workspace_tmLanguage_default = {
+  $schema: "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  name: "keiro-workspace",
+  scopeName: "source.keiro-workspace",
+  patterns: [
+    { include: "#comments" },
+    { include: "#service" },
+    { include: "#runtime-package" },
+    { include: "#module" },
+    { include: "#layout" },
+    { include: "#spec" }
+  ],
+  repository: {
+    comments: {
+      match: "#.*$",
+      name: "comment.line.number-sign.keiro-workspace"
+    },
+    service: {
+      match: "^(\\s*)(service)(\\s+)([A-Za-z0-9][A-Za-z0-9_-]*)",
+      captures: {
+        "2": { name: "keyword.declaration.keiro-workspace" },
+        "4": { name: "entity.name.service.keiro-workspace" }
+      }
+    },
+    "runtime-package": {
+      match: "^(\\s*)(runtime-package)(\\s+)([A-Za-z0-9][A-Za-z0-9_.-]*)",
+      captures: {
+        "2": { name: "keyword.control.keiro-workspace" },
+        "4": { name: "entity.name.package.keiro-workspace" }
+      }
+    },
+    module: {
+      match: "^(\\s*)(module)(\\s+)([A-Z][A-Za-z0-9_]*(?:\\.[A-Z][A-Za-z0-9_]*)*)",
+      captures: {
+        "2": { name: "keyword.control.keiro-workspace" },
+        "4": { name: "entity.name.namespace.keiro-workspace" }
+      }
+    },
+    layout: {
+      match: "^(\\s*)(layout)(\\s+)(prefixed|collocated)\\b",
+      captures: {
+        "2": { name: "keyword.control.keiro-workspace" },
+        "4": { name: "storage.modifier.keiro-workspace" }
+      }
+    },
+    spec: {
+      match: "^(\\s*)(spec)(\\s+)([A-Za-z0-9_./-]+\\.keiro)\\b",
+      captures: {
+        "2": { name: "keyword.declaration.keiro-workspace" },
+        "4": { name: "string.unquoted.path.keiro-workspace" }
+      }
     }
   }
 };
@@ -95,8 +188,14 @@ var keiro = {
   scopeName: "source.keiro",
   aliases: ["keiro-dsl"]
 };
+var keiroWorkspace = {
+  ...keiro_workspace_tmLanguage_default,
+  name: "keiro-workspace",
+  scopeName: "source.keiro-workspace"
+};
 var index_default = keiro;
 export {
   index_default as default,
-  keiro
+  keiro,
+  keiroWorkspace
 };

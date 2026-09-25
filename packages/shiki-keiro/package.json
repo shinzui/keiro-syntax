@@ -1,7 +1,7 @@
 {
   "name": "shiki-keiro",
   "version": "0.1.0",
-  "description": "Shiki TextMate grammar and language registration for keiro-dsl (.keiro)",
+  "description": "Shiki TextMate grammars for keiro-dsl (.keiro and .keiro-workspace)",
   "type": "module",
   "files": ["dist", "syntaxes"],
   "main": "./dist/index.js",
@@ -13,7 +13,9 @@
       "import": "./dist/index.js"
     },
     "./grammar": "./syntaxes/keiro.tmLanguage.json",
-    "./syntaxes/keiro.tmLanguage.json": "./syntaxes/keiro.tmLanguage.json"
+    "./syntaxes/keiro.tmLanguage.json": "./syntaxes/keiro.tmLanguage.json",
+    "./workspace-grammar": "./syntaxes/keiro-workspace.tmLanguage.json",
+    "./syntaxes/keiro-workspace.tmLanguage.json": "./syntaxes/keiro-workspace.tmLanguage.json"
   },
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean",

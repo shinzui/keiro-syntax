@@ -1,5 +1,6 @@
 import type { LanguageRegistration } from 'shiki'
 import grammar from '../syntaxes/keiro.tmLanguage.json' with { type: 'json' }
+import workspaceGrammar from '../syntaxes/keiro-workspace.tmLanguage.json' with { type: 'json' }
 
 /**
  * Shiki language registration for keiro-dsl.
@@ -15,6 +16,13 @@ export const keiro: LanguageRegistration = {
   name: 'keiro',
   scopeName: 'source.keiro',
   aliases: ['keiro-dsl'],
+}
+
+/** Shiki registration for .keiro-workspace service manifests. */
+export const keiroWorkspace: LanguageRegistration = {
+  ...(workspaceGrammar as unknown as LanguageRegistration),
+  name: 'keiro-workspace',
+  scopeName: 'source.keiro-workspace',
 }
 
 export default keiro

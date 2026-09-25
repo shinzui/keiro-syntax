@@ -1,0 +1,5 @@
+# A workspace with the other supported layout.
+service example-service
+module Example.Service
+layout prefixed
+spec domain/module.keiro  # member source

@@ -10,5 +10,7 @@ import { LanguageRegistration } from 'shiki';
  *   hl.codeToHtml(src, { lang: 'keiro', theme: 'github-light' })
  */
 declare const keiro: LanguageRegistration;
+/** Shiki registration for .keiro-workspace service manifests. */
+declare const keiroWorkspace: LanguageRegistration;
 
-export { keiro as default, keiro };
+export { keiro as default, keiro, keiroWorkspace };

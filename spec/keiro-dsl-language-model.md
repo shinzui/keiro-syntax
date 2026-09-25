@@ -235,13 +235,10 @@ parser, a Haskell file using the `megaparsec` library:
 list in Section 3 is copied verbatim from that file's `reservedWords` list and must match it
 exactly.
 
-**Out of scope: the `.keiro-workspace` manifest.** keiro-dsl also has a *second* file format,
-a service workspace manifest with the extension `.keiro-workspace`, parsed by a different
-module (`/Users/shinzui/Keikaku/bokuno/keiro/keiro-dsl/src/Keiro/Dsl/Workspace.hs`) with its
-own grammar. Neither this document nor either package covers it — both packages register only
-for `.keiro`. Its complete lexical surface is written down under Surprises & Discoveries in
-`docs/plans/8-highlight-consumer-owned-mapped-types-and-their-wire-shapes.md`, so a future
-plan that decides to highlight it starts from recorded facts rather than fresh research.
+**Separate format: the `.keiro-workspace` manifest.** It is parsed by a different
+module with its own grammar. This document describes `.keiro` source files; the
+workspace syntax and classifications are recorded in
+[`keiro-workspace-language-model.md`](keiro-workspace-language-model.md).
 
 
 ## Section 2 — Comments, strings, numbers, identifiers

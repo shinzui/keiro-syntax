@@ -1,9 +1,10 @@
 # shiki-keiro
 
-A [Shiki](https://shiki.style/) language registration and TextMate grammar for **keiro-dsl**
-(`.keiro`) files. Register it and your `keiro` code blocks render as fully colored HTML.
+[Shiki](https://shiki.style/) language registrations and TextMate grammars for
+**keiro-dsl** (`.keiro`) files and service workspace manifests
+(`.keiro-workspace`).
 
-The classification mirrors the shared language model in
+The `.keiro` classification mirrors the shared language model in
 [`spec/keiro-dsl-language-model.md`](../../spec/keiro-dsl-language-model.md) (Section 6), so it
 agrees with the `keiro-vim` package on which words are keywords, types, constants, etc. The
 grammar's scope names are the canonical `*.keiro` scopes from that spec.
@@ -22,27 +23,33 @@ bun add shiki-keiro shiki
 
 ```ts
 import { createHighlighter } from 'shiki'
-import { keiro } from 'shiki-keiro'
+import { keiro, keiroWorkspace } from 'shiki-keiro'
 
 const highlighter = await createHighlighter({
   themes: ['github-light'],
-  langs: [keiro],
+  langs: [keiro, keiroWorkspace],
 })
 
 const html = highlighter.codeToHtml(source, { lang: 'keiro', theme: 'github-light' })
+const workspaceHtml = highlighter.codeToHtml(manifest, {
+  lang: 'keiro-workspace',
+  theme: 'github-light',
+})
 ```
 
 `keiro` is a Shiki `LanguageRegistration` (`name: 'keiro'`, `scopeName: 'source.keiro'`,
 alias `keiro-dsl`). It is also the default export.
+`keiroWorkspace` registers the `keiro-workspace` language with
+`source.keiro-workspace` as its root scope.
 
 ## Raw grammar (VS Code and other TextMate tools)
 
-The bare TextMate grammar is published at the `shiki-keiro/grammar` export path and as
-`syntaxes/keiro.tmLanguage.json` in the package, for consumers that want the grammar without
-Shiki:
+The bare TextMate grammars are published at `shiki-keiro/grammar` and
+`shiki-keiro/workspace-grammar`, as well as under `syntaxes/` in the package:
 
 ```ts
 import grammar from 'shiki-keiro/grammar'
+import workspaceGrammar from 'shiki-keiro/workspace-grammar'
 ```
 
 ## Scopes
@@ -60,6 +67,9 @@ import grammar from 'shiki-keiro/grammar'
 | Number | `constant.numeric.keiro` |
 | Comment | `comment.line.number-sign.keiro` |
 | Operator | `keyword.operator.keiro` |
+
+Workspace manifest scopes are listed in
+[`spec/keiro-workspace-language-model.md`](../../spec/keiro-workspace-language-model.md).
 
 ## Development
 

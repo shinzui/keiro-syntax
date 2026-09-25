@@ -1,11 +1,13 @@
 # keiro-vim
 
-Syntax highlighting for **keiro-dsl** (`.keiro`) files in Vim and Neovim.
+Syntax highlighting for **keiro-dsl** (`.keiro`) files and service workspace
+manifests (`.keiro-workspace`) in Vim and Neovim.
 
 Opening any `.keiro` file highlights keywords, type names, strings, numbers, comments, and
 operators automatically — no per-project configuration. It uses the portable regex-based
 `:syntax` mechanism, so it works in both classic Vim and Neovim with no compiled parser or
-build step.
+build step. A `.keiro-workspace` file highlights its clauses, values, paths, and comments
+with a separate syntax file.
 
 The classification mirrors the shared language model in
 [`spec/keiro-dsl-language-model.md`](../../spec/keiro-dsl-language-model.md) (Section 6),
@@ -14,7 +16,7 @@ etc.
 
 ## What it provides
 
-- `ftdetect/keiro.vim` — maps `*.keiro` to the `keiro` filetype.
+- `ftdetect/keiro.vim` — maps `*.keiro` and `*.keiro-workspace` to their respective filetypes.
 - `ftplugin/keiro.vim` — sets `commentstring` / `comments` for `#` line comments.
 - `syntax/keiro.vim` — defines the `keiro*` syntax groups and links each to a standard
   highlight group your color scheme already styles:
@@ -32,6 +34,10 @@ etc.
   | `keiroModifier` | `StorageClass` |
   | `keiroOperator` | `Operator` |
 
+`syntax/keiro-workspace.vim` defines corresponding `keiroWorkspace*` groups
+according to [`spec/keiro-workspace-language-model.md`](../../spec/keiro-workspace-language-model.md).
+`ftplugin/keiro-workspace.vim` sets `#` comment options for manifests.
+
 ## Installation
 
 ```vim
@@ -48,8 +54,8 @@ use '/path/to/keiro-syntax/packages/keiro-vim'
 Manual install: copy or symlink the `ftdetect/`, `ftplugin/`, and `syntax/` directories into
 your `~/.config/nvim/` (Neovim) or `~/.vim/` (Vim).
 
-Once installed, opening a `.keiro` file just works. To verify, open one and run
-`:set filetype?` — it should print `filetype=keiro`.
+Once installed, opening either format just works. Run `:set filetype?` to verify
+`keiro` or `keiro-workspace` for the corresponding extension.
 
 ## Tests
 

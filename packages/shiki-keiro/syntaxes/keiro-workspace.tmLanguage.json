@@ -1,0 +1,54 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "keiro-workspace",
+  "scopeName": "source.keiro-workspace",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#service" },
+    { "include": "#runtime-package" },
+    { "include": "#module" },
+    { "include": "#layout" },
+    { "include": "#spec" }
+  ],
+  "repository": {
+    "comments": {
+      "match": "#.*$",
+      "name": "comment.line.number-sign.keiro-workspace"
+    },
+    "service": {
+      "match": "^(\\s*)(service)(\\s+)([A-Za-z0-9][A-Za-z0-9_-]*)",
+      "captures": {
+        "2": { "name": "keyword.declaration.keiro-workspace" },
+        "4": { "name": "entity.name.service.keiro-workspace" }
+      }
+    },
+    "runtime-package": {
+      "match": "^(\\s*)(runtime-package)(\\s+)([A-Za-z0-9][A-Za-z0-9_.-]*)",
+      "captures": {
+        "2": { "name": "keyword.control.keiro-workspace" },
+        "4": { "name": "entity.name.package.keiro-workspace" }
+      }
+    },
+    "module": {
+      "match": "^(\\s*)(module)(\\s+)([A-Z][A-Za-z0-9_]*(?:\\.[A-Z][A-Za-z0-9_]*)*)",
+      "captures": {
+        "2": { "name": "keyword.control.keiro-workspace" },
+        "4": { "name": "entity.name.namespace.keiro-workspace" }
+      }
+    },
+    "layout": {
+      "match": "^(\\s*)(layout)(\\s+)(prefixed|collocated)\\b",
+      "captures": {
+        "2": { "name": "keyword.control.keiro-workspace" },
+        "4": { "name": "storage.modifier.keiro-workspace" }
+      }
+    },
+    "spec": {
+      "match": "^(\\s*)(spec)(\\s+)([A-Za-z0-9_./-]+\\.keiro)\\b",
+      "captures": {
+        "2": { "name": "keyword.declaration.keiro-workspace" },
+        "4": { "name": "string.unquoted.path.keiro-workspace" }
+      }
+    }
+  }
+}
